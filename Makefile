@@ -54,6 +54,11 @@ run: ## runs the last build docker image
 	@echo "+ $@"
 	docker run -it "${CONTAINER_NAME}"
 
+.PHONY: jenkins
+jenkins: ## run acceptance tests
+	@echo "+ $@"
+	./netassert test/test-localhost.yaml
+
 .PHONY: test
 test: ## build, test, and push container, then run local tests
 	@echo "+ $@"
