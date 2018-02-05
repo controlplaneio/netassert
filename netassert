@@ -97,6 +97,10 @@ iterate_k8s() {
     return 0
   fi
 
+  if is_gke; then
+    check_dependencies gcloud
+  fi
+
   (parallel --record-env)
   export -f _iterate_k8s_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME
@@ -408,11 +412,13 @@ read_config() {
 }
 
 check_dependencies() {
-  local DEPS=(jq yj ssh gcloud timeout)
+  local DEPS=(jq yj ssh timeout ${*:-})
 
   for DEP in "${DEPS[@]}"; do
-    if ! command -v "${DEP}" &>/dev/null; then
-      error "${DEP} not found in path"
+    if [[ -n "${DEP:-}" ]]; then
+      if ! command -v "${DEP}" &>/dev/null; then
+        error "${DEP} not found in path"
+      fi
     fi
   done
 }
