@@ -412,7 +412,7 @@ read_config() {
 }
 
 check_dependencies() {
-  local DEPS=(jq yj ssh timeout ${*:-})
+  local DEPS=(jq yj ssh timeout parallel ${*:-})
 
   for DEP in "${DEPS[@]}"; do
     if [[ -n "${DEP:-}" ]]; then
