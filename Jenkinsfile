@@ -4,7 +4,7 @@ node {
   ansiColor('xterm') {
 
     stage('Checkout') {
-      git url: 'ssh://git@github.com:controlplaneio/netassert',
+      git url: 'git@github.com:controlplaneio/netassert',
         changelog: false,
         branch: 'master',
         credentialsId: "${GIT_CREDENTIALS}"
