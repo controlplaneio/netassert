@@ -1,0 +1,23 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: redis-allow-services
+spec:
+  podSelector:
+    matchLabels:
+      app: bookstore
+      role: db
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: bookstore
+          role: search
+    - podSelector:
+        matchLabels:
+          app: bookstore
+          role: api
+    - podSelector:
+        matchLabels:
+          app: inventory
+          role: web

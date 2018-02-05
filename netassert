@@ -1,0 +1,548 @@
+#!/usr/bin/env bash
+#
+# netassert
+#
+# Andrew Martin, 2018-01-21 19:59:24
+# sublimino@gmail.com
+#
+## Usage: %SCRIPT_NAME% [options] [filename]
+##
+## Options:
+##   --image             Name of test image
+##   --offline           Assume image is already on target nodes
+##
+##   --debug             More debug
+##
+##   -h --help           Display this message
+##
+
+# exit on error or pipe failure
+set -eo pipefail
+# error on unset variable
+set -o nounset
+# error on clobber
+set -o noclobber
+
+# user defaults
+DEBUG=0
+
+# resolved directory and self
+declare -r DIR=$(cd "$(dirname "$0")" && pwd)
+declare -r THIS_SCRIPT="${DIR}/$(basename "$0")"
+
+# required defaults
+declare -a ARGUMENTS
+EXPECTED_NUM_ARGUMENTS=0
+ARGUMENTS=()
+FILENAME="test/test.yaml"
+NETASSERT_IMAGE_NAME="sublimino/scratch:dev"
+CONTAINER_BASE_NAME="netassert"
+CONTAINER_NAME="${CONTAINER_BASE_NAME}-${RANDOM}"
+CONFIG=''
+TEMP_DIR=''
+TEST_FAILURES=0
+TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
+IS_OFFLINE=0
+
+main() {
+  handle_arguments "$@"
+
+  info "Using test file '${FILENAME}'"
+
+  check_dependencies
+
+  read_config
+
+  count_expected_tests
+
+  debug "${CONFIG}"
+
+  create_temp_dir
+
+  trap cleanup EXIT
+
+  iterate_k8s
+
+  iterate_host
+
+}
+
+count_expected_tests() {
+  EXPECTED_TESTS=$(jqc "${CONFIG}" '[(.host, .k8s.deployment) | keys? | .[]? ] | length')
+  info "${EXPECTED_TESTS} tests expected"
+}
+
+cleanup() {
+  trap '' EXIT
+
+  docker rm --force "${CONTAINER_NAME}" &>/dev/null || true
+
+  present_results
+
+  if [[ "${TEST_FAILURES}" -gt 0 ]]; then
+    error "${TEST_FAILURES} failed (${SECONDS}s)"
+  else
+    success "Pass (${SECONDS}s)"
+  fi
+}
+
+is_gke() {
+  [[ $(kubectl get node --output json | jq '.items?[]? .metadata? .labels? ."cloud.google.com/gke-nodepool" | values' | grep '^' -c) -gt 0 ]]
+}
+
+iterate_k8s() {
+  local HOSTS=$(jqc "${CONFIG}" '.k8s? .deployment? | keys? | .[]?')
+  if [[ "${HOSTS:-}" == "" ]]; then
+    info "No K8S nodes to test"
+    return 0
+  fi
+
+  (parallel --record-env)
+  export -f _iterate_k8s_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml
+  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME
+
+  #  info "Iterating K8S targets: $(echo ${HOSTS} | tr ' ' ',')"
+
+  local TIMEOUT=""
+  if command -v timeout &>/dev/null; then
+    TIMEOUT="timeout --signal=HUP ${TEST_TIMEOUT}"
+  fi
+
+  ${TIMEOUT} parallel \
+    --line-buffer \
+    --env _ \
+    -P 5 \
+    _iterate_k8s_worker \
+    ::: "${HOSTS}"
+
+  info "K8S remote test finish"
+}
+
+_iterate_k8s_worker() {
+
+  set -euo pipefail
+  if [[ "${DEBUG}" != 0 ]]; then
+    set -x
+  fi
+
+  local HOSTS="${1:-}"
+
+  if [[ "${HOSTS:-}" == "" ]]; then
+    error "No K8S nodes to test in worker"
+  fi
+
+  for HOST in ${HOSTS}; do
+    if [[ "${HOST}" == 'localhost' ]]; then
+      error "localhost not permitted for k8s tests"
+    fi
+
+    local TEST_DATA=$(jqc "${CONFIG}" ".k8s | .deployment? .\"${HOST}\" | values")
+    TEST_DATA=$(jq --null-input ".host .\"_${HOST}\" |= ${TEST_DATA}")
+    debug "this host: ${TEST_DATA}"
+
+    local NAMESPACE=${HOST/:*/}
+    POD=${HOST/*:/}
+
+    info "K8S remote test start: ${POD} (namespace: ${NAMESPACE})"
+
+    if ! \
+      ssh_to_node \
+        "${POD}" \
+        "${NAMESPACE}" \
+        "${NETASSERT_IMAGE_NAME}" \
+        "npm test -s" \
+        --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
+      | tee "${TEMP_DIR}/${HOST}" >/dev/null; then
+
+      warning "${HOST} fail"
+    else
+      success "${HOST} pass"
+    fi
+
+
+  done <<<"${HOSTS}"
+}
+
+iterate_host() {
+  local HOSTS=$(jqc "${CONFIG}" '.host? | keys? | .[]?')
+  if [[ "${HOSTS:-}" == "" ]]; then
+    info "No instances to test"
+    return 0
+  fi
+
+  (parallel --record-env)
+  export -f _iterate_host_worker jqc success info debug error warning \
+    ssh_to_node log_message_prefix is_gke to_yaml \
+    wait_safe
+  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME
+
+  #  info "Iterating instance targets: $(echo ${HOSTS} | tr ' ' ',')"
+
+  local TIMEOUT=""
+  if command -v timeout &>/dev/null; then
+    TIMEOUT="timeout --signal=HUP ${TEST_TIMEOUT}"
+  fi
+
+  ${TIMEOUT} parallel \
+    --line-buffer \
+    --env _ \
+    -P 5 \
+    _iterate_host_worker \
+    ::: "${HOSTS}"
+
+  info "Remote test finish: ${HOSTS}"
+}
+
+_iterate_host_worker() {
+
+  set -euo pipefail
+  if [[ "${DEBUG}" != 0 ]]; then
+    set -x
+  fi
+
+  local HOSTS="${1:-}"
+  local CONFIG_FILE_FLAG=""
+
+  if [[ "${HOSTS:-}" == "" ]]; then
+    error "No instances to test in worker"
+  fi
+
+  if [[ -f /opt/ssh_config ]]; then
+    CONFIG_FILE_FLAG="-F /opt/ssh_config"
+  fi
+  info "Iterating instance targets: $(echo ${HOSTS} | tr ' ' ',')"
+
+  if [[ "${IS_OFFLINE:-}" != 1 ]]; then
+    for HOST in ${HOSTS}; do
+      if [[ "${HOST}" == 'localhost' ]]; then
+        (echo "Pulling image on $(hostname)" && docker pull "${NETASSERT_IMAGE_NAME}") &
+        PIDS+="$! "
+      else
+        ssh \
+          ${CONFIG_FILE_FLAG} \
+          "${HOST}" \
+          -- \
+          bash -c "echo Pulling image on $(hostname) && docker pull ${NETASSERT_IMAGE_NAME}" 2>&1 \
+          | tee -a "${TEMP_DIR}/${HOST}" &
+        PIDS+="$! "
+      fi
+    done
+  fi
+
+  if [[ "${PIDS:-}" != "" ]]; then
+    wait_safe ${PIDS}
+  fi
+
+  for HOST in ${HOSTS}; do
+    info "host ${HOST}"
+    local TEST_DATA=$(jqc "${CONFIG}" ".. | .host? .\"${HOST}\" | values")
+    TEST_DATA=$(jq --null-input ".host .\"_${HOST}\" |= ${TEST_DATA}")
+    debug "this host: ${TEST_DATA}"
+
+    CONTAINER_NAME="${CONTAINER_BASE_NAME}-${RANDOM}"
+
+    if [[ "${HOST}" == 'localhost' ]]; then
+
+      if ! \
+        docker run -t \
+          --net=host \
+          --name "${CONTAINER_NAME}" \
+          --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
+          "${NETASSERT_IMAGE_NAME}" \
+          npm test -s \
+        | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
+
+        warning "${HOST} fail"
+      else
+        success "${HOST} pass"
+      fi
+    else
+
+      info "Remote test start: ${HOST}"
+
+      if ! \
+        ssh \
+        -tt \
+        ${CONFIG_FILE_FLAG} \
+        "${HOST}" \
+        -- \
+        bash -c " \
+          trap cleanup EXIT; \
+          cleanup() { docker rm --force ${CONTAINER_NAME} &>/dev/null; }; \
+          docker run -i \
+            --net=host \
+            --name ${CONTAINER_NAME} \
+            --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
+            "${NETASSERT_IMAGE_NAME}" \
+            npm test -s \
+          " \
+        | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
+
+        warning "${HOST} fail"
+      else
+        success "${HOST} pass"
+      fi
+    fi
+  done <<<"${HOSTS}"
+}
+
+to_yaml() {
+  yj
+}
+
+ssh_to_node() {
+  local TARGET="${1:-istio-proxy-nginx-ddbfq}"
+  local NAMESPACE="${2:-default}"
+  local DEBUG_IMAGE="${3:-sublimino/alpine-base}"
+  local COMMAND="${4:-bash}"
+  shift 4
+  local FLAGS="${@}"
+  local CONNECTION=''
+  local CONTEXT=$(kubectl config current-context)
+  local HOST=$(kubectl get pods --all-namespaces -o wide \
+    | awk "\$1 = /^${NAMESPACE}/ && \$2 = /${TARGET}/ {print \$8}")
+
+  local HOST_COUNT=$(printf "${HOST}" | grep --count '^')
+  if [[ "${HOST_COUNT}" -lt 1 ]]; then
+    error "No hosts found for ${TARGET}"
+  fi
+
+  HOST=$(echo "${HOST}" | sort --random-sort | head -n 1)
+  if [[ "${HOST:-}" == "" ]]; then
+    error "No hosts found for ${TARGET}"
+  fi
+
+  if [[ "${CONTEXT}" == 'minikube' ]]; then
+    CONNECTION='minikube ssh -- -t'
+  elif is_gke; then
+    HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
+    CONNECTION="gcloud compute ssh "${HOST}" -- -t"
+  else
+    CONNECTION="ssh "${HOST}" -t --"
+  fi
+
+  info "Connecting to ${HOST}..."
+
+  local PULL_COMMAND=""
+  if [[ "${IS_OFFLINE:-}" != 1 ]]; then
+    PULL_COMMAND="docker pull ${DEBUG_IMAGE} >/dev/null;"
+  fi
+
+  ${CONNECTION} \
+    "\
+    set -ex; \
+    SUDO=""; \
+    if ! docker version; then SUDO=sudo; fi; \
+    ${PULL_COMMAND} \
+    CONTAINER=\$(\${SUDO} docker ps | grep -Ev '(google_containers/pause| k8s_proxy_)' | grep \"${TARGET}\" | awk 'NR==1{print \$1}'); \
+    [[ -z \${CONTAINER} ]] && { echo CONTAINER not found; exit 1; }; \
+    { whoami; \${SUDO} docker ps | grep \${CONTAINER}; } >/dev/null; \
+    CONTAINER_NAME=\"${CONTAINER_BASE_NAME}-\${RANDOM}\"; \
+    cleanup() { docker rm --force \${CONTAINER_NAME} >/dev/null 2>&1; }; \
+    trap cleanup EXIT; \
+    \${SUDO} docker run -it \
+      --net container:\${CONTAINER} \
+      --name \${CONTAINER_NAME} \
+      ${FLAGS} \
+      ${DEBUG_IMAGE} \
+      ${COMMAND} \
+    " \
+    |& grep -v "Connection to [^ ]* closed."
+}
+
+
+present_results() {
+  hr
+  local RESULT_COUNT=0
+  for RESULT in $(find ${TEMP_DIR}/ -type f); do
+    local TEST_NAME="${RESULT/${TEMP_DIR}\//}"
+    RESULT_COUNT=$((RESULT_COUNT + 1))
+    info "Results: ${TEST_NAME}"
+    local TAP_RESULT=$(if ! cat "${RESULT}" | grep -E '^TAP version [0-9]+' -A 9999; then
+      cat "${RESULT}"
+    fi)
+
+    echo "${TAP_RESULT}"
+    if ! echo "${TAP_RESULT}" \
+      | grep -E '^# tests [0-9]+' -A 3 \
+      | grep --fixed-strings "# fail 0" &>/dev/null; then
+
+      TEST_FAILURES=$((TEST_FAILURES + 1))
+      warning "${TEST_NAME} fail"
+    else
+      success "${TEST_NAME} pass"
+    fi
+    hr
+  done
+
+  if [[ "${RESULT_COUNT}" == 0 ]]; then
+    error "No results found in ${TEMP_DIR} (${SECONDS}s)"
+  elif [[ "${RESULT_COUNT}" -ne "${EXPECTED_TESTS}" ]]; then
+    error "${EXPECTED_TESTS} tests expected, ${RESULT_COUNT} found (${SECONDS}s)"
+  fi
+}
+
+create_temp_dir() {
+  TEMP_DIR=$(mktemp -d) # shorthand for alpine/busybox compat
+}
+
+jqc() {
+  if [[ $# -gt 1 ]]; then
+    local INPUT="${1}"
+    [[ "${INPUT:-}" != '' ]] || error "jqc argument is empty"
+    shift
+    echo "${INPUT}" | jq --raw-output --compact-output "${@}"
+  else
+    jq --raw-output --compact-output "${@}"
+  fi
+}
+
+read_config() {
+  local FIRST_CHAR=$(head -c 1 "${FILENAME}")
+
+  CONFIG=$(if [[ "${FIRST_CHAR}" == '{' || "${FIRST_CHAR}" == '[' ]]; then
+    jq . "${FILENAME}"
+  else
+    cat "${FILENAME}" | to_yaml
+  fi)
+}
+
+check_dependencies() {
+  local DEPS=(jq yj ssh gcloud timeout)
+
+  for DEP in "${DEPS[@]}"; do
+    if ! command -v "${DEP}" &>/dev/null; then
+      error "${DEP} not found in path"
+    fi
+  done
+}
+
+handle_arguments() {
+  parse_arguments "$@"
+  validate_arguments "$@"
+}
+
+parse_arguments() {
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --image)
+        shift
+        not_empty_or_usage "${1:-}"
+        NETASSERT_IMAGE_NAME="${1}"
+        ;;
+      --offline)
+        IS_OFFLINE=1
+        ;;
+      -h | --help) usage ;;
+      --debug)
+        DEBUG=1
+        set -xe
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*) usage "${1}: unknown option" ;;
+      *) ARGUMENTS+=("$1") ;;
+    esac
+    shift
+  done
+}
+
+validate_arguments() {
+  [[ "${#ARGUMENTS[@]}" -gt 2 ]] && usage "Only one input file permitted"
+  [[ "${#ARGUMENTS[@]}" -gt 0 ]] && FILENAME="${ARGUMENTS[0]}" || true
+
+  [[ -f "${FILENAME}" ]] || error "${FILENAME} not found"
+}
+
+# helper functions
+
+usage() {
+  [ "$*" ] && echo "${THIS_SCRIPT}: ${COLOUR_RED}$*${COLOUR_RESET}" && echo
+  sed -n '/^##/,/^$/s/^## \{0,1\}//p' "${THIS_SCRIPT}" | sed "s/%SCRIPT_NAME%/$(basename "${THIS_SCRIPT}")/g"
+  exit 2
+} 2>/dev/null
+
+success() {
+  [ "${*:-}" ] && RESPONSE="$*" || RESPONSE="Unknown Success"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_GREEN}${RESPONSE}${COLOUR_RESET}"
+} 1>&2
+
+info() {
+  [ "${*:-}" ] && INFO="$*" || INFO="Unknown Info"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_WHITE}${INFO}${COLOUR_RESET}"
+} 1>&2
+
+debug() {
+  if [[ "${DEBUG:-}" != 1 ]]; then
+    return
+  fi
+  [ "${*:-}" ] && INFO="$*" || INFO="Unknown Info"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_WHITE}${INFO}${COLOUR_RESET}"
+} 1>&2
+
+warning() {
+  [ "${*:-}" ] && ERROR="$*" || ERROR="Unknown Warning"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_RED}${ERROR}${COLOUR_RESET}"
+} 1>&2
+
+error() {
+  [ "${*:-}" ] && ERROR="$*" || ERROR="Unknown Error"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_RED}${ERROR}${COLOUR_RESET}"
+  exit 3
+} 1>&2
+
+error_env_var() {
+  error "${1} environment variable required"
+}
+
+log_message_prefix() {
+  local TIMESTAMP="[$(date +'%Y-%m-%dT%H:%M:%S.%3N%z')]"
+  local THIS_SCRIPT_SHORT=${THIS_SCRIPT/$DIR/.}
+  tput bold 2>/dev/null
+  echo -n "${TIMESTAMP} ${THIS_SCRIPT_SHORT}: "
+}
+
+is_empty() {
+  [[ -z ${1-} ]] && return 0 || return 1
+}
+
+not_empty_or_usage() {
+  is_empty "${1-}" && usage "Non-empty value required" || return 0
+}
+
+check_number_of_expected_arguments() {
+  [[ "${EXPECTED_NUM_ARGUMENTS}" != "${#ARGUMENTS[@]}" ]] && {
+    ARGUMENTS_STRING="argument"
+    [[ "${EXPECTED_NUM_ARGUMENTS}" -gt 1 ]] && ARGUMENTS_STRING="${ARGUMENTS_STRING}"s
+    usage "${EXPECTED_NUM_ARGUMENTS} ${ARGUMENTS_STRING} expected, ${#ARGUMENTS[@]} found"
+  }
+  return 0
+}
+
+hr() {
+  printf '=%.0s' $(seq $(tput cols))
+  echo
+}
+
+wait_safe() {
+  local PIDS="${1}"
+  for JOB in ${PIDS}; do
+    wait "${JOB}"
+  done
+}
+
+export CLICOLOR=1
+export TERM="xterm-color"
+export COLOUR_BLACK=$(tput setaf 0 :-"" 2>/dev/null)
+export COLOUR_RED=$(tput setaf 1 :-"" 2>/dev/null)
+export COLOUR_GREEN=$(tput setaf 2 :-"" 2>/dev/null)
+export COLOUR_YELLOW=$(tput setaf 3 :-"" 2>/dev/null)
+export COLOUR_BLUE=$(tput setaf 4 :-"" 2>/dev/null)
+export COLOUR_MAGENTA=$(tput setaf 5 :-"" 2>/dev/null)
+export COLOUR_CYAN=$(tput setaf 6 :-"" 2>/dev/null)
+export COLOUR_WHITE=$(tput setaf 7 :-"" 2>/dev/null)
+export COLOUR_RESET=$(tput sgr0 :-"" 2>/dev/null)
+
+main "$@"

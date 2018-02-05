@@ -1,0 +1,11 @@
+k8s:
+
+  deployment:
+    default:bc-admin-ui:
+
+      check-status-gs: 80, 443
+      find-mock: 80, 443
+      pcp-ui: 80, 443
+
+    default:pcp-ui:
+      check-status-gs: 80, 443

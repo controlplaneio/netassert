@@ -1,0 +1,66 @@
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# OS generated files #
+######################
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db
+
+# SSH                 #
+#######################
+.ssh/*.pem
+.ssh/*.pub
+
+# IDE generated files #
+#######################
+.idea/
+
+conf/.ssh/
+conf/.vim/bundle/
+google-cloud-sdk
+conf/.tmux/plugins/*
+!conf/.tmux/plugins/tpm/
+conf/.tmux/resurrect/
+
+conf/.tunnelbear/pass
+conf/.ivpn/pass
+
+conf/.config/fish/fish_history
+conf/.config/fish/fishd.ac*
+
+conf/.docker/config.json
+
+includes/_SECRET
+
+!bin/
+.passwd-s3fs
+*.orig
+
+!lib/

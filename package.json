@@ -1,0 +1,24 @@
+{
+  "name": "talk-assert-network",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "bash -c 'APP=\"ava --tap --concurrency=2\"; if [[ $(whoami) != root ]]; then echo \"WARNING: UDP requires root (currently $(whoami)). Requesting sudo\"; sudo ${APP}; else ${APP}; fi'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sublimino/talk-assert-network.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sublimino/talk-assert-network/issues"
+  },
+  "homepage": "https://github.com/sublimino/talk-assert-network#readme",
+  "dependencies": {
+    "ava": "^0.15.2",
+    "node-nmap": "git+https://github.com/sublimino/node-nmap.git",
+    "yaml-js": "^0.2.3"
+  }
+}

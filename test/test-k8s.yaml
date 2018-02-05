@@ -1,0 +1,13 @@
+k8s:
+  deployment:
+    default:test-frontend:
+      test-microservice: 80
+      test-database: -80
+
+    default:test-microservice:
+      test-database.default: 80
+      test-frontend.default: 80
+
+    default:test-database:
+      test-frontend.default.svc.cluster.local: 80
+      test-microservice.default.svc.cluster.local: -80

@@ -1,0 +1,23 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: slow
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: io1
+  iopsPerGB: "10"
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slow-test
+spec:
+  accessModes:
+  - ReadWriteMany
+  volumeMode: Filesystem
+  storageClassName: slow
+  resources:
+    requests:
+      storage: 1Gi

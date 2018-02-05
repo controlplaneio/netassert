@@ -1,0 +1,43 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: test-frontend-allow-services
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+      role: frontend
+  ingress:
+  - from: []
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: test-microservice-allow-services
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+      role: microservice
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: web
+          role: frontend
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: test-database-allow-services
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+      role: database
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: web
+          role: microservice
