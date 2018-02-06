@@ -1,10 +1,10 @@
 # netassert
 
-`netassert`: network testing for humans
+`netassert`: network security testing for DevSecOps workflows
 
 **NOTE:** this framework is in beta state as we move towards our first 1.0 release. Please file any issues you find and note the version used.
 
-This project is thin, distributed wrapper around nmap, ssh, and kubectl. It asserts the state of ports on hosts, with traffic originating from anywhere the test runner can access via SSH.
+This is a security testing framework for fast, safe iteration on firewall, routing, and NACL rules for Kubernetes ([Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/), services) and non-containerised hosts (cloud provider instances, VMs, bare metal). It aggressively parallelises `nmap` to test outbound network connections and ports from any accessible host, container, or Kubernetes pod by joining the same network namespace as the instance under test.
 
 ## CLI
 
@@ -21,7 +21,7 @@ Options:
   -h --help           Display this message
 ```
 
-## configuration
+## Configuration
 
 netassert takes a single YAML file as input. This file lists the hosts to test from, and describes the hosts and ports that it should be able to reach.
 
@@ -77,7 +77,7 @@ k8s: # used for Kubernetes pods
 ```
 
 
-### test from localhost
+### Test outbound connections from localhost
 
 To test that `localhost` can reach `8.8.8.8` and `8.8.4.4` on port 53 UDP:
 
@@ -94,7 +94,7 @@ What this test does:
 1. Check port `UDP:53` is open on `8.8.8.8` and `8.8.4.4`
 1. Shows TAP results
 
-### test from a remote server
+### Test outbound connections from a remote server
 
 Test that `control-plane.io` can reach `github.com`:
 
@@ -114,7 +114,7 @@ What this test does:
 1. Returns TAP results to the test runner host
 
 
-### test localhost can reach a remote server, and that the remote server can reach another host
+### Test localhost can reach a remote server, and that the remote server can reach another host
 
 ```yaml
 host:
@@ -126,7 +126,7 @@ host:
       - 22
 ```
 
-### test Kubernetes pod
+### Test a Kubernetes pod
 
 Test that a pod can reach `8.8.8.8`:
 
@@ -137,7 +137,7 @@ k8s:
       8.8.8.8: UDP:53
 ```
 
-### test Kubernetes pods' intercommunication
+### Test Kubernetes pods' intercommunication
 
 Test that `my-pod` in namespace `default` can reach `other-pod` in `other-namespace`, and that `other-pod` cannot reach
 `my-pod`:
@@ -165,9 +165,9 @@ k8s:
 1. the same process applies to non-Kubernetes instances accessible via ssh
 
 
-# example
+# Example
 
-### deploy our micro-microservices
+### Deploy fake mini-microservices
 ```bash
 for DEPLOYMENT_TYPE in \
   frontend \
@@ -188,7 +188,7 @@ for DEPLOYMENT_TYPE in \
 done
 ```
 
-### run netassert - this should fail
+### Run netassert (this should fail)
 
 ```bash
 ./netassert test/test-k8s.yaml
@@ -199,14 +199,14 @@ As we haven't applied network policies, this will fail
 
 ###
 
-### apply network policies
+### Apply network policies
 ```
 kubectl apply -f resource/net-pol/web-deny-all.yaml
 kubectl apply -f resource/net-pol/test-services-allow.yaml
 ```
 
 
-### manually test the pods
+### Manually test the pods
 ```
 kubectl exec -it test-frontend-5cc944689f-rzv4f -- wget -qO- --timeout=2 http://test-microservice
 kubectl exec -it test-microservice-5cc944689f-rzv4f -- wget -qO- --timeout=2 http://test-database
