@@ -1,0 +1,15 @@
+host:
+  localhost:
+    8.8.8.8: UDP:53
+    8.8.4.4: UDP:53
+    google.co.uk: 443
+    binarysludge.com: 80, 81, 443, 22
+    control-plane.io:
+      - 443
+      - 80
+    localhost:
+      - 22
+      - -TCP:30731
+      - -UDP:1234
+      - -999
+      - -UDP:555

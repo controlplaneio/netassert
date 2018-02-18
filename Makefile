@@ -21,6 +21,8 @@ GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 CONTAINER_TAG ?= $(GIT_TAG)
 CONTAINER_NAME := $(REGISTRY)/$(NAME):$(CONTAINER_TAG)
 
+TEST_FILE := "test/test-localhost-remote.yaml"
+
 export NAME REGISTRY BUILD_DATE GIT_MESSAGE GIT_SHA GIT_TAG CONTAINER_TAG CONTAINER_NAME
 
 .PHONY: cluster
@@ -51,12 +53,28 @@ build: ## builds a docker image
 .PHONY: run
 run: ## runs the last build docker image
 	@echo "+ $@"
-	docker run -it "${CONTAINER_NAME}"
+	docker run -i "${CONTAINER_NAME}" ${ARGS}
+
+.PHONY: run-in-docker
+run-in-docker: ## runs the last build docker image inside docker
+	@echo "+ $@"
+	docker run -i \
+		--net=host \
+		${DOCKER_ARGS} \
+		-v /var/run/docker.sock:/var/run/docker.sock:ro \
+		"${CONTAINER_NAME}" ${ARGS}
 
 .PHONY: jenkins
 jenkins: ## run acceptance tests
 	@echo "+ $@"
-	./netassert test/test-localhost.yaml
+	make build
+	make run-in-docker \
+		ARGS='netassert --offline --image ${CONTAINER_NAME} ${TEST_FILE}'
+
+.PHONY: rollcage-test
+rollcage-test: ## build, test, and push container, then run local tests
+	@echo "+ $@"
+	make rollcage && ./netassert test/test-all.yaml
 
 .PHONY: test
 test: ## build, test, and push container, then run local tests
