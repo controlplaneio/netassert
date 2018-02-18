@@ -101,9 +101,7 @@ iterate_k8s() {
     check_dependencies gcloud
   fi
 
-  (parallel --record-env)
-  export -f _iterate_k8s_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml
-  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME
+  configure_parallel
 
   #  info "Iterating K8S targets: $(echo ${HOSTS} | tr ' ' ',')"
 
@@ -167,6 +165,20 @@ _iterate_k8s_worker() {
   done <<<"${HOSTS}"
 }
 
+configure_parallel() {
+  PARALLEL_HOME=/tmp/parallel
+  SHELL=/bin/bash
+  TMPDIR=/tmp/parallel/tmp
+  export PARALLEL_HOME SHELL TMPDIR
+
+  mkdir -p "${TMPDIR}" &>/dev/null || true
+
+  (parallel --record-env)
+  export -f _iterate_k8s_worker _iterate_host_worker jqc success info  debug error warning ssh_to_node log_message_prefix is_gke to_yaml
+
+  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME
+}
+
 iterate_host() {
   local HOSTS=$(jqc "${CONFIG}" '.host? | keys? | .[]?')
   if [[ "${HOSTS:-}" == "" ]]; then
@@ -174,13 +186,7 @@ iterate_host() {
     return 0
   fi
 
-  (parallel --record-env)
-  export -f _iterate_host_worker jqc success info debug error warning \
-    ssh_to_node log_message_prefix is_gke to_yaml \
-    wait_safe
-  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME
-
-  #  info "Iterating instance targets: $(echo ${HOSTS} | tr ' ' ',')"
+  configure_parallel
 
   local TIMEOUT=""
   if command -v timeout &>/dev/null; then
