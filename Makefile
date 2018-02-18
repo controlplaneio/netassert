@@ -1,6 +1,6 @@
-NAME := talk-net-assert
+NAME := netassert
 PKG := github.com/controlplane/$(NAME)
-REGISTRY := docker.io
+REGISTRY := docker.io/controlplane
 
 SHELL := /bin/bash
 BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -8,15 +8,11 @@ BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 GIT_MESSAGE := $(shell git -c log.showSignature=false log --max-count=1 --pretty=format:"%H")
 GIT_SHA := $(shell git log -1 --format=%h)
 GIT_TAG ?= $(shell bash -c 'TAG=$$(git tag | tail -n1); echo "$${TAG:-none}"')
-GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
-ifneq ($(GITUNTRACKEDCHANGES),)
-	GITCOMMIT := $(GITCOMMIT)-dirty
-endif
 
-# golang buildtime, more at https://github.com/jessfraz/pepper/blob/master/Makefile
-CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION)
-GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
-GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
+GIT_UNTRACKED_CHANGES := $(shell git status --porcelain --untracked-files=no)
+ifneq ($(GIT_UNTRACKED_CHANGES),)
+	GIT_COMMIT := $(GIT_COMMIT)-dirty
+endif
 
 CONTAINER_TAG ?= $(GIT_TAG)
 CONTAINER_NAME := $(REGISTRY)/$(NAME):$(CONTAINER_TAG)
@@ -54,6 +50,11 @@ build: ## builds a docker image
 run: ## runs the last build docker image
 	@echo "+ $@"
 	docker run -i "${CONTAINER_NAME}" ${ARGS}
+
+.PHONY: push
+push: ## pushes a docker image
+	@echo "+ $@"
+	docker push "${CONTAINER_NAME}"
 
 .PHONY: run-in-docker
 run-in-docker: ## runs the last build docker image inside docker
