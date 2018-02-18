@@ -46,7 +46,6 @@ cluster-def: ## builds a test cluster
 .PHONY: build
 build: ## builds a docker image
 	@echo "+ $@"
-	npm install
 	docker build --tag "${CONTAINER_NAME}" .
 
 .PHONY: run
