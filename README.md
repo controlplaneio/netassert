@@ -6,6 +6,36 @@
 
 This is a security testing framework for fast, safe iteration on firewall, routing, and NACL rules for Kubernetes ([Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/), services) and non-containerised hosts (cloud provider instances, VMs, bare metal). It aggressively parallelises `nmap` to test outbound network connections and ports from any accessible host, container, or Kubernetes pod by joining the same network namespace as the instance under test.
 
+- [netassert](#netassert)
+  * [Why?](#why)
+  * [CLI](#cli)
+  * [Configuration](#configuration)
+    + [Test outbound connections from localhost](#test-outbound-connections-from-localhost)
+    + [Test outbound connections from a remote server](#test-outbound-connections-from-a-remote-server)
+    + [Test localhost can reach a remote server, and that the remote server can reach another host](#test-localhost-can-reach-a-remote-server-and-that-the-remote-server-can-reach-another-host)
+    + [Test a Kubernetes pod](#test-a-kubernetes-pod)
+    + [Test Kubernetes pods' intercommunication](#test-kubernetes-pods-intercommunication)
+  * [Example flow for K8S pods](#example-flow-for-k8s-pods)
+- [Example](#example)
+    + [Deploy fake mini-microservices](#deploy-fake-mini-microservices)
+    + [Run netassert (this should fail)](#run-netassert-this-should-fail)
+    + [Apply network policies](#apply-network-policies)
+    + [Run netassert (this should pass)](#run-netassert-this-should-pass)
+    + [Manually test the pods](#manually-test-the-pods)
+
+## Why?
+
+The alternative is to `exec` into a container and `curl`, or spin up new pods with the same selectors and `curl` from there. This has lots of problems (extra tools in container image, or tool installation despite immutable root filesystems, or egress prevention). `netassert` aims to fix this:
+- does not rely on a dedicated tool speaking the correct target protocol (e.g. doesn't need `curl`, GRPC client, etc)
+- does not bloat the pod under test or increase the pod's attack surface with non-production tooling
+- works with `FROM scratch` containers
+- is parallelised to run in near-constant time for large or small test suites
+- does not look to the Kubernetes API server like it's changing the system under test 
+- operates at TCP/IP layers (3 and 4) so does not show up in logs (e.g. `nginx` access logs)
+- produces TAP output for humans and build servers
+
+More information and background in [this presentation](https://www.binarysludge.com/2018/02/05/assertion-or-it-didnt-happen-in-cloud-networks-cfgmgmtcamp-feburary-2018/) from Configuration Management Camp 2018.
+
 ## CLI
 
 ```bash
@@ -190,14 +220,11 @@ done
 
 ### Run netassert (this should fail)
 
+As we haven't applied network policies, this should **FAIL**.
+
 ```bash
 ./netassert test/test-k8s.yaml
 ```
-
-As we haven't applied network policies, this will fail
-
-
-###
 
 ### Apply network policies
 ```
@@ -205,10 +232,29 @@ kubectl apply -f resource/net-pol/web-deny-all.yaml
 kubectl apply -f resource/net-pol/test-services-allow.yaml
 ```
 
+### Run netassert (this should pass)
+
+Now that we've applied the policies that these tests reflect, this should pass: 
+
+```bash
+./netassert test/test-k8s.yaml
+```
+
+For manual verification of the test results we can `exec` and `curl` in the pods under test (see [why] above for reasons that this is a bad idea).
 
 ### Manually test the pods
 ```
-kubectl exec -it test-frontend-5cc944689f-rzv4f -- wget -qO- --timeout=2 http://test-microservice
-kubectl exec -it test-microservice-5cc944689f-rzv4f -- wget -qO- --timeout=2 http://test-database
-kubectl exec -it test-database-5cc944689f-rzv4f -- wget -qO- --timeout=2 http://test-frontend
+kubectl exec -it test-frontend-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-microservice
+kubectl exec -it test-microservice-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-database
+kubectl exec -it test-database-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-frontend
+```
+
+These should all pass as they have equivalent network policies.
+
+The network policies do not allow the `frontend` pods to communicate with the `database` pods.
+
+Let's verify that manually - this should **FAIL**:
+
+```
+kubectl exec -it test-frontend-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-database
 ```
