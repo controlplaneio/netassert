@@ -70,30 +70,30 @@ A full example:
 ```yaml
 host: # used for ssh-accessible hosts
   localhost: # host to run test from, can be a remote host
-    8.8.8.8: UDP:53 # host and ports to test
+    8.8.8.8: UDP:53 # host and ports to test from localhost
     google.co.uk: 443 # if no protocol is specified then TCP is implied
-    control-plane.io: 80, 81, 443, 22 # ports can be comma- or space- delimited
+    control-plane.io: 80, 81, 443, 22 # ports can be comma or space delimited
     kubernetes.io: # this can be anything SSH can access
       - 443 # ports can be provided as a list
       - 80
     localhost: # this tests ports on the local machine
       - 22
-      - -999 # ports can be negated with `-`
+      - -999       # ports can be negated with `-`, this checks that 999 TCP is not open
       - -TCP:30731 # TCP is implied, but can be specified
-      - -UDP:1234 # UDP ports must be specified
+      - -UDP:1234  # UDP must be explicitly stated, otherwise TCP assumed
       - -UDP:555
 
   control-plane.io: # this must be accessible via ssh (perhaps via ssh-agent), or `localhost`
-    8.8.8.8: UDP:53 # this tests 8.8.8.8:53 from control-plane.io
-    8.8.4.4: UDP:53
-    google.com: 443
+    8.8.8.8: UDP:53 # this tests 8.8.8.8:53 is accesible from control-plane.io
+    8.8.4.4: UDP:53 # this tests 8.8.4.4:53 is accesible from control-plane.io
+    google.com: 443 # this tests google.com:443 is accesible from control-plane.io
 
 
 k8s: # used for Kubernetes pods
   deployment: # only deployments currently supported
     test-frontend: # pod name, defaults to `default` namespace
-      test-microservice: 80 # `test-microservice` is the DNS name of the target service
-      test-database: -80
+      test-microservice: 80  # `test-microservice` is the DNS name of the target service
+      test-database: -80     # test-frontend should not be able to access test-database port 80
 
     new-namespace:test-microservice: # `new-namespace` is the namespace name
       test-database.new-namespace: 80 # longer DNS names can be used for other namespaces
@@ -102,10 +102,7 @@ k8s: # used for Kubernetes pods
     default:test-database:
       test-frontend.default.svc.cluster.local: 80 # full DNS names can be used
       test-microservice.default.svc.cluster.local: -80
-
-
 ```
-
 
 ### Test outbound connections from localhost
 
