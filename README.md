@@ -30,8 +30,8 @@ The alternative is to `exec` into a container and `curl`, or spin up new pods wi
 - does not bloat the pod under test or increase the pod's attack surface with non-production tooling
 - works with `FROM scratch` containers
 - is parallelised to run in near-constant time for large or small test suites
-- does not look to the Kubernetes API server like it's changing the system under test 
-- operates at TCP/IP layers (3 and 4) so does not show up in logs (e.g. `nginx` access logs)
+- does not appear to the Kubernetes API server that it's changing the system under test 
+- uses TCP/IP (layers 3 and 4) so does not show up in HTTP logs (e.g. `nginx` access logs)
 - produces TAP output for humans and build servers
 
 More information and background in [this presentation](https://www.binarysludge.com/2018/02/05/assertion-or-it-didnt-happen-in-cloud-networks-cfgmgmtcamp-feburary-2018/) from Configuration Management Camp 2018.
