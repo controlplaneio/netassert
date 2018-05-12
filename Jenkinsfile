@@ -3,6 +3,7 @@ pipeline {
 
   environment {
     CONTAINER_TAG = 'latest'
+    ENVIRONMENT = 'ops'
     GIT_CREDENTIALS = "ssh-key-jenkins-bot"
   }
 
@@ -59,15 +60,19 @@ pipeline {
       }
 
       environment {
-        DOCKER_HUB_PASSWORD = credentials('docker-hub-controlplane')
+        DOCKER_REGISTRY_CREDENTIALS = credentials("${ENVIRONMENT}_docker_credentials")
       }
 
       steps {
         ansiColor('xterm') {
-          sh 'echo "${DOCKER_HUB_PASSWORD}" | docker login ' +
-            '--username "controlplane" ' +
-            '--password-stdin'
-          sh 'make push CONTAINER_TAG="${CONTAINER_TAG}"'
+          sh """
+            echo '${DOCKER_REGISTRY_CREDENTIALS_PSW}' \
+            | docker login \
+              --username '${DOCKER_REGISTRY_CREDENTIALS_USR}' \
+              --password-stdin
+
+            make push CONTAINER_TAG='${CONTAINER_TAG}'
+          """
         }
       }
     }
