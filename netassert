@@ -10,6 +10,7 @@
 ## Options:
 ##   --image             Name of test image
 ##   --offline           Assume image is already on target nodes
+##   --timeout           Integer time to wait before giving up on tests (default 120)
 ##
 ##   --debug             More debug
 ##
@@ -48,6 +49,8 @@ main() {
   handle_arguments "$@"
 
   info "Using test file '${FILENAME}'"
+  info "Using Docker image '${NETASSERT_IMAGE_NAME}'"
+  info "Tests will timeout after '${TEST_TIMEOUT}' seconds"
 
   check_dependencies
 
@@ -442,6 +445,12 @@ parse_arguments() {
         not_empty_or_usage "${1:-}"
         NETASSERT_IMAGE_NAME="${1}"
         ;;
+      --timeout)
+        shift
+        not_empty_or_usage "${1:-}"
+        is_integer ${1}
+        TEST_TIMEOUT=${1}
+        ;;
       --offline)
         IS_OFFLINE=1
         ;;
@@ -522,6 +531,13 @@ is_empty() {
 
 not_empty_or_usage() {
   is_empty "${1-}" && usage "Non-empty value required" || return 0
+}
+
+is_integer() {
+  case "$1" in
+    ''|*[!0-9]*) usage "Valid integer value required" ;;
+    *) return 0 ;;
+  esac
 }
 
 check_number_of_expected_arguments() {
