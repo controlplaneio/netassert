@@ -8,13 +8,14 @@
 ## Usage: %SCRIPT_NAME% [options] [filename]
 ##
 ## Options:
-##   --image             Name of test image
-##   --offline           Assume image is already on target nodes
-##   --timeout           Integer time to wait before giving up on tests (default 120)
+##   --image                Name of test image
+##   --offline              Assume image is already on target nodes
+##   --timeout              Integer time to wait before giving up on tests (default 120)
+##   --gcloud-ssh-options   Optional options to pass to the 'gcloud compute ssh' command
 ##
-##   --debug             More debug
+##   --debug                More debug
 ##
-##   -h --help           Display this message
+##   -h --help              Display this message
 ##
 
 # exit on error or pipe failure
@@ -40,6 +41,7 @@ NETASSERT_IMAGE_NAME="sublimino/scratch:dev"
 CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-${RANDOM}"
 CONFIG=''
+GCLOUD_SSH_OPTIONS=""
 TEMP_DIR=''
 TEST_FAILURES=0
 TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
@@ -179,7 +181,7 @@ configure_parallel() {
   (parallel --record-env)
   export -f _iterate_k8s_worker _iterate_host_worker jqc success info  debug error warning ssh_to_node log_message_prefix is_gke to_yaml
 
-  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME
+  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME GCLOUD_SSH_OPTIONS
 }
 
 iterate_host() {
@@ -329,7 +331,7 @@ ssh_to_node() {
     CONNECTION='minikube ssh -- -t'
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
-    CONNECTION="gcloud compute ssh "${HOST}" -- -t"
+    CONNECTION="gcloud compute ssh "${HOST}" "${GCLOUD_SSH_OPTIONS}" -- -t"
   else
     CONNECTION="ssh "${HOST}" -t --"
   fi
@@ -450,6 +452,11 @@ parse_arguments() {
         not_empty_or_usage "${1:-}"
         is_integer ${1}
         TEST_TIMEOUT=${1}
+        ;;
+      --gcloud-ssh-options)
+        shift
+        not_empty_or_usage "${1:-}"
+        GCLOUD_SSH_OPTIONS="${1}"
         ;;
       --offline)
         IS_OFFLINE=1
