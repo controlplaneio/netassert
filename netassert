@@ -144,18 +144,24 @@ _iterate_k8s_worker() {
     TEST_DATA=$(jq --null-input ".host .\"_${HOST}\" |= ${TEST_DATA}")
     debug "this host: ${TEST_DATA}"
 
-    local NAMESPACE=${HOST/:*/}
+    local NAMESPACE
+    if [[ "${HOST}" =~ : ]]; then
+      NAMESPACE=${HOST/:*/}
+    else
+      NAMESPACE=default
+    fi
+
     POD=${HOST/*:/}
 
     info "K8S remote test start: ${POD} (namespace: ${NAMESPACE})"
 
     if ! \
       ssh_to_node \
-        "${POD}" \
-        "${NAMESPACE}" \
-        "${NETASSERT_IMAGE_NAME}" \
-        "npm test -s" \
-        --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
+      "${POD}" \
+      "${NAMESPACE}" \
+      "${NETASSERT_IMAGE_NAME}" \
+      "npm test -s" \
+      --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
       | tee "${TEMP_DIR}/${HOST}" >/dev/null; then
 
       warning "${HOST} fail"
@@ -163,8 +169,8 @@ _iterate_k8s_worker() {
       success "${HOST} pass"
     fi
 
-
-  done <<<"${HOSTS}"
+  done \
+    <<<"${HOSTS}"
 }
 
 configure_parallel() {
