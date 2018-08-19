@@ -22,7 +22,7 @@ TEST_FILE := "test/test-localhost-remote.yaml"
 export NAME REGISTRY BUILD_DATE GIT_MESSAGE GIT_SHA GIT_TAG CONTAINER_TAG CONTAINER_NAME
 
 .PHONY: cluster
-cluster: ## builds a test cluster image
+cluster: ## builds a test cluster
 	@echo "+ $@"
 	gcloud container clusters create \
 	--zone europe-west2-a \
@@ -32,14 +32,7 @@ cluster: ## builds a test cluster image
 	--num-nodes 1 \
 	--preemptible \
 	--enable-network-policy \
-	netpol3
-
-.PHONY: cluster-def
-cluster-def: ## builds a test cluster
-	@echo "+ $@"
-	gcloud beta container clusters create np-2 \
-    --enable-network-policy \
-		--preemptible
+	netassert
 
 .PHONY: build
 build: ## builds a docker image

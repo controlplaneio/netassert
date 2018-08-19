@@ -10,6 +10,7 @@
 ## Options:
 ##   --image             Name of test image
 ##   --offline           Assume image is already on target nodes
+##   --ssh-user          SSH user for kubelet host
 ##
 ##   --debug             More debug
 ##
@@ -37,12 +38,13 @@ ARGUMENTS=()
 FILENAME="test/test.yaml"
 NETASSERT_IMAGE_NAME="sublimino/scratch:dev"
 CONTAINER_BASE_NAME="netassert"
-CONTAINER_NAME="${CONTAINER_BASE_NAME}-${RANDOM}"
+CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 CONFIG=''
 TEMP_DIR=''
 TEST_FAILURES=0
 TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
 IS_OFFLINE=0
+SSH_USER=''
 
 main() {
   handle_arguments "$@"
@@ -174,9 +176,9 @@ configure_parallel() {
   mkdir -p "${TMPDIR}" &>/dev/null || true
 
   (parallel --record-env)
-  export -f _iterate_k8s_worker _iterate_host_worker jqc success info  debug error warning ssh_to_node log_message_prefix is_gke to_yaml
+  export -f _iterate_k8s_worker _iterate_host_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml
 
-  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME
+  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER
 }
 
 iterate_host() {
@@ -249,17 +251,17 @@ _iterate_host_worker() {
     TEST_DATA=$(jq --null-input ".host .\"_${HOST}\" |= ${TEST_DATA}")
     debug "this host: ${TEST_DATA}"
 
-    CONTAINER_NAME="${CONTAINER_BASE_NAME}-${RANDOM}"
+    CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 
     if [[ "${HOST}" == 'localhost' ]]; then
 
       if ! \
         docker run -t \
-          --net=host \
-          --name "${CONTAINER_NAME}" \
-          --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
-          "${NETASSERT_IMAGE_NAME}" \
-          npm test -s \
+        --net=host \
+        --name "${CONTAINER_NAME}" \
+        --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
+        "${NETASSERT_IMAGE_NAME}" \
+        npm test -s \
         | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
 
         warning "${HOST} fail"
@@ -328,7 +330,10 @@ ssh_to_node() {
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
     CONNECTION="gcloud compute ssh "${HOST}" -- -t"
   else
-    CONNECTION="ssh "${HOST}" -t --"
+    if [[ -n "${SSH_USER}" ]]; then
+      HOST="${SSH_USER}@${HOST}"
+    fi
+    CONNECTION="ssh -o ConnectTimeout=10 -o BatchMode=yes ${HOST} -tt --"
   fi
 
   info "Connecting to ${HOST}..."
@@ -337,6 +342,8 @@ ssh_to_node() {
   if [[ "${IS_OFFLINE:-}" != 1 ]]; then
     PULL_COMMAND="docker pull ${DEBUG_IMAGE} >/dev/null;"
   fi
+
+  THIS_CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 
   ${CONNECTION} \
     "\
@@ -347,7 +354,7 @@ ssh_to_node() {
     CONTAINER=\$(\${SUDO} docker ps | grep -Ev '(google_containers/pause| k8s_proxy_)' | grep \"${TARGET}\" | awk 'NR==1{print \$1}'); \
     [[ -z \${CONTAINER} ]] && { echo CONTAINER not found; exit 1; }; \
     { whoami; \${SUDO} docker ps | grep \${CONTAINER}; } >/dev/null; \
-    CONTAINER_NAME=\"${CONTAINER_BASE_NAME}-\${RANDOM}\"; \
+    CONTAINER_NAME=\"${THIS_CONTAINER_NAME}\"; \
     cleanup() { docker rm --force \${CONTAINER_NAME} >/dev/null 2>&1; }; \
     trap cleanup EXIT; \
     \${SUDO} docker run -it \
@@ -359,7 +366,6 @@ ssh_to_node() {
     " \
     |& grep -v "Connection to [^ ]* closed."
 }
-
 
 present_results() {
   hr
@@ -441,6 +447,11 @@ parse_arguments() {
         shift
         not_empty_or_usage "${1:-}"
         NETASSERT_IMAGE_NAME="${1}"
+        ;;
+      --ssh-user)
+        shift
+        not_empty_or_usage "${1:-}"
+        SSH_USER="${1}"
         ;;
       --offline)
         IS_OFFLINE=1
