@@ -168,7 +168,7 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   log('expected', expectedTests)
   t.plan(expectedTests)
 
-  let nmapQueryString = `-p ${portsToTest.map((x) => `${protocol.toUpperCase()[0]}:${x}`).join(',')}`
+  let nmapQueryString = `-Pn -p ${portsToTest.map((x) => `${protocol.toUpperCase()[0]}:${x}`).join(',')}`
 
   if (protocol == 'udp') {
     nmapQueryString = `-sU -sV ${nmapQueryString}`

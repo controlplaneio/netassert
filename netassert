@@ -8,13 +8,15 @@
 ## Usage: %SCRIPT_NAME% [options] [filename]
 ##
 ## Options:
-##   --image             Name of test image
-##   --offline           Assume image is already on target nodes
-##   --ssh-user          SSH user for kubelet host
+##   --image                Name of test image
+##   --offline              Assume image is already on target nodes
+##   --timeout              Integer time to wait before giving up on tests (default 120)
+##   --ssh-user             SSH user for kubelet host
+##   --gcloud-ssh-options   Optional options to pass to the 'gcloud compute ssh' command
 ##
-##   --debug             More debug
+##   --debug                More debug
 ##
-##   -h --help           Display this message
+##   -h --help              Display this message
 ##
 
 # exit on error or pipe failure
@@ -40,6 +42,7 @@ NETASSERT_IMAGE_NAME="sublimino/scratch:dev"
 CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 CONFIG=''
+GCLOUD_SSH_OPTIONS=""
 TEMP_DIR=''
 TEST_FAILURES=0
 TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
@@ -50,6 +53,8 @@ main() {
   handle_arguments "$@"
 
   info "Using test file '${FILENAME}'"
+  info "Using Docker image '${NETASSERT_IMAGE_NAME}'"
+  info "Tests will timeout after '${TEST_TIMEOUT}' seconds"
 
   check_dependencies
 
@@ -184,7 +189,7 @@ configure_parallel() {
   (parallel --record-env)
   export -f _iterate_k8s_worker _iterate_host_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml
 
-  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER
+  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER GCLOUD_SSH_OPTIONS
 }
 
 iterate_host() {
@@ -334,7 +339,7 @@ ssh_to_node() {
     CONNECTION='minikube ssh -- -t'
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
-    CONNECTION="gcloud compute ssh "${HOST}" -- -t"
+    CONNECTION="gcloud compute ssh "${HOST}" "${GCLOUD_SSH_OPTIONS}" -- -t"
   else
     if [[ -n "${SSH_USER}" ]]; then
       HOST="${SSH_USER}@${HOST}"
@@ -357,7 +362,7 @@ ssh_to_node() {
     SUDO=""; \
     if ! docker version; then SUDO=sudo; fi; \
     ${PULL_COMMAND} \
-    CONTAINER=\$(\${SUDO} docker ps | grep -Ev '(google_containers/pause| k8s_proxy_)' | grep \"${TARGET}\" | awk 'NR==1{print \$1}'); \
+    CONTAINER=\$(\${SUDO} docker ps | grep -Ev '(google_containers/pause| k8s_proxy_)' | grep \"${TARGET}\" | grep \"${NAMESPACE}\" | awk 'NR==1{print \$1}'); \
     [[ -z \${CONTAINER} ]] && { echo CONTAINER not found; exit 1; }; \
     { whoami; \${SUDO} docker ps | grep \${CONTAINER}; } >/dev/null; \
     CONTAINER_NAME=\"${THIS_CONTAINER_NAME}\"; \
@@ -454,11 +459,21 @@ parse_arguments() {
         not_empty_or_usage "${1:-}"
         NETASSERT_IMAGE_NAME="${1}"
         ;;
+      --timeout)
+        shift
+        not_empty_or_usage "${1:-}"
+        is_integer ${1}
+        TEST_TIMEOUT=${1}
+        ;;
       --ssh-user)
         shift
         not_empty_or_usage "${1:-}"
         SSH_USER="${1}"
         ;;
+      --gcloud-ssh-options)
+        shift
+        not_empty_or_usage "${1:-}"
+        GCLOUD_SSH_OPTIONS="${1}"
       --offline)
         IS_OFFLINE=1
         ;;
@@ -539,6 +554,13 @@ is_empty() {
 
 not_empty_or_usage() {
   is_empty "${1-}" && usage "Non-empty value required" || return 0
+}
+
+is_integer() {
+  case "$1" in
+    ''|*[!0-9]*) usage "Valid integer value required" ;;
+    *) return 0 ;;
+  esac
 }
 
 check_number_of_expected_arguments() {
