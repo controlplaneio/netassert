@@ -16,7 +16,7 @@ endif
 
 CONTAINER_TAG ?= $(GIT_TAG)
 CONTAINER_NAME := $(REGISTRY)/$(NAME):$(CONTAINER_TAG)
-TEST_CONTAINER_TAG := "testing"
+TEST_CONTAINER_TAG ?= "testing"
 CONTAINER_NAME_TESTING := $(REGISTRY)/$(NAME):$(TEST_CONTAINER_TAG)
 
 TEST_FILE := "test/test-localhost-remote.yaml"
@@ -59,7 +59,7 @@ push: ## pushes a docker image
 .PHONY: run-in-docker
 run-in-docker: ## runs the last build docker image inside docker
 	@echo "+ $@"
-	set -x ;	docker run -i \
+	set -x ; docker run -i \
 		--net=host \
 		--cap-add NET_ADMIN \
 		--cap-add NET_RAW \
@@ -95,7 +95,7 @@ test: test-deploy ## build, test, and push container, then run local tests
 			ARGS='netassert --image ${CONTAINER_NAME_TESTING} test/test-all.yaml'
 
 .PHONY: test-local
-test-local: test-deploy ## test from the local machine
+test-local: ## test from the local machine
 	@echo "+ $@"
 	./netassert \
 		--image ${CONTAINER_NAME_TESTING} \

@@ -38,7 +38,7 @@ declare -a ARGUMENTS
 EXPECTED_NUM_ARGUMENTS=0
 ARGUMENTS=()
 FILENAME="test/test.yaml"
-NETASSERT_IMAGE_NAME="controlplane/netassert:none"
+NETASSERT_IMAGE_NAME="controlplane/netassert:0.1"
 CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 CONFIG=''
@@ -473,6 +473,7 @@ parse_arguments() {
         shift
         not_empty_or_usage "${1:-}"
         GCLOUD_SSH_OPTIONS="${1}"
+        ;;
       --offline)
         IS_OFFLINE=1
         ;;
