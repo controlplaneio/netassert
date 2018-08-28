@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "bash -c 'APP=\"ava --tap --concurrency=2\"; if [[ $(whoami) != root ]]; then echo \"WARNING: UDP requires root (currently $(whoami)). Requesting sudo\"; sudo ${APP}; else ${APP}; fi'"
+    "test": "bash -c 'APP=\"ava --tap --concurrency=2\"; if false; then echo \"WARNING: UDP requires root (currently $(whoami)). Requesting sudo\"; sudo ${APP}; else ${APP}; fi'"
   },
   "repository": {
     "type": "git",

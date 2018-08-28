@@ -38,7 +38,7 @@ declare -a ARGUMENTS
 EXPECTED_NUM_ARGUMENTS=0
 ARGUMENTS=()
 FILENAME="test/test.yaml"
-NETASSERT_IMAGE_NAME="sublimino/scratch:dev"
+NETASSERT_IMAGE_NAME="controlplane/netassert:none"
 CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 CONFIG=''
@@ -71,7 +71,6 @@ main() {
   iterate_k8s
 
   iterate_host
-
 }
 
 count_expected_tests() {
@@ -187,7 +186,7 @@ configure_parallel() {
   mkdir -p "${TMPDIR}" &>/dev/null || true
 
   (parallel --record-env)
-  export -f _iterate_k8s_worker _iterate_host_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml
+  export -f _iterate_k8s_worker _iterate_host_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
 
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER GCLOUD_SSH_OPTIONS
 }

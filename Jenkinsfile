@@ -7,10 +7,14 @@ pipeline {
     GIT_CREDENTIALS = "ssh-key-jenkins-bot"
   }
 
+  // stages is "all pipeline stages"
   stages {
+    // the name of this stage, represented in the stage view e.g. https://jenkins.ctlplane.io/job/netassert/
     stage('Build') {
+      // defines the "agent" aka "jenkins slave"
       agent {
         docker {
+          // always run in this image, it's got latest kubectl and is based from a google-managed image
           image 'docker.io/controlplane/gcloud-sdk:latest'
           args '-v /var/run/docker.sock:/var/run/docker.sock ' +
             '--user=root ' +
@@ -19,6 +23,7 @@ pipeline {
         }
       }
 
+      // here is the actual build for this stage
       steps {
         ansiColor('xterm') {
           sh 'make build CONTAINER_TAG="${CONTAINER_TAG}"'
