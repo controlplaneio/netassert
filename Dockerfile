@@ -43,8 +43,6 @@ RUN \
 COPY package.json /code/
 RUN npm install
 
-COPY node_modules/node-nmap/ /code/node_modules/node-nmap/
-
 # TODO(ajm) netassert doesn't run in the container yet
 COPY test/ /code/test/
 COPY entrypoint.sh yj netassert /usr/local/bin/
