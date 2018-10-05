@@ -58,18 +58,20 @@ push: ## pushes a docker image
 
 .PHONY: run-in-docker
 run-in-docker: ## runs the last build docker image inside docker
-	@echo "+ $@"
-	set -x ; docker run -i \
-		--net=host \
-		--cap-add NET_ADMIN \
-		--cap-add NET_RAW \
-		${DOCKER_ARGS} \
-		-v ~/.config/gcloud/:/root/.config/gcloud/ \
-		-v ~/.ssh/:/tmp/.ssh/:ro \
-		-v ~/.kube/:/root/.kube:ro \
-		-v $(shell readlink -f ~/.ssh/config):/tmp/ssh-config:ro \
-		-v /var/run/docker.sock:/var/run/docker.sock:ro \
-		"${CONTAINER_NAME}" ${ARGS}
+	@echo "+ $@"; \
+		set -x ; \
+		LINK=$(shell readlink -f ~/.ssh/config); \
+		docker run -i \
+			--net=host \
+			--cap-add NET_ADMIN \
+			--cap-add NET_RAW \
+			${DOCKER_ARGS} \
+			-v ~/.config/gcloud/:/root/.config/gcloud/ \
+			-v ~/.ssh/:/tmp/.ssh/:ro \
+			-v ~/.kube/:/root/.kube:ro \
+			-v $${LINK:-/dev/null}:/tmp/ssh-config:ro \
+			-v /var/run/docker.sock:/var/run/docker.sock:ro \
+			"${CONTAINER_NAME}" ${ARGS}
 
 .PHONY: jenkins
 jenkins: ## run acceptance tests
