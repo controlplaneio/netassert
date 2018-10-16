@@ -22,8 +22,8 @@ This is a security testing framework for fast, safe iteration on firewall, routi
     + [Test a Kubernetes pod](#test-a-kubernetes-pod)
     + [Test Kubernetes pods' intercommunication](#test-kubernetes-pods-intercommunication)
   * [Example flow for K8S pods](#example-flow-for-k8s-pods)
-  
-  
+
+
 ## Why?
 
 The alternative is to `exec` into a container and `curl`, or spin up new pods with the same selectors and `curl` from there. This has lots of problems (extra tools in container image, or tool installation despite immutable root filesystems, or egress prevention). `netassert` aims to fix this:
@@ -31,7 +31,7 @@ The alternative is to `exec` into a container and `curl`, or spin up new pods wi
 - does not bloat the pod under test or increase the pod's attack surface with non-production tooling
 - works with `FROM scratch` containers
 - is parallelised to run in near-constant time for large or small test suites
-- does not appear to the Kubernetes API server that it's changing the system under test 
+- does not appear to the Kubernetes API server that it's changing the system under test
 - uses TCP/IP (layers 3 and 4) so does not show up in HTTP logs (e.g. `nginx` access logs)
 - produces TAP output for humans and build servers
 
@@ -39,7 +39,7 @@ More information and background in [this presentation](https://www.binarysludge.
 
 ## CLI
 
-```bash
+```
 Usage: netassert [options] [filename]
 
 Options:
@@ -63,7 +63,7 @@ Options:
 - `parallel`
 - `timeout`
 
-> These will be moved into a container runner in the future 
+> These will be moved into a container runner in the future
 
 ## Prerequisites on target
 
@@ -117,7 +117,7 @@ kubectl apply -f resource/net-pol/test-services-allow.yaml
 
 ### Run netassert (this should pass)
 
-Now that we've applied the policies that these tests reflect, this should pass: 
+Now that we've applied the policies that these tests reflect, this should pass:
 
 ```bash
 ./netassert test/test-k8s.yaml
