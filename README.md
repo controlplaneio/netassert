@@ -56,6 +56,19 @@ Options:
 
 # Example
 
+## Prerequisites on host machine
+
+- `jq`
+- `yq`
+- `parallel`
+- `timeout`
+
+> These will be moved into a container runner in the future 
+
+## Prerequisites on target
+
+- `docker`
+
 ### Deploy fake mini-microservices
 ```bash
 for DEPLOYMENT_TYPE in \
