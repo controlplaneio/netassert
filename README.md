@@ -9,20 +9,21 @@ This is a security testing framework for fast, safe iteration on firewall, routi
 - [netassert](#netassert)
   * [Why?](#why)
   * [CLI](#cli)
-  * [Configuration](#configuration)
-    + [Test outbound connections from localhost](#test-outbound-connections-from-localhost)
-    + [Test outbound connections from a remote server](#test-outbound-connections-from-a-remote-server)
-    + [Test localhost can reach a remote server, and that the remote server can reach another host](#test-localhost-can-reach-a-remote-server-and-that-the-remote-server-can-reach-another-host)
-    + [Test a Kubernetes pod](#test-a-kubernetes-pod)
-    + [Test Kubernetes pods' intercommunication](#test-kubernetes-pods-intercommunication)
-  * [Example flow for K8S pods](#example-flow-for-k8s-pods)
 - [Example](#example)
     + [Deploy fake mini-microservices](#deploy-fake-mini-microservices)
     + [Run netassert (this should fail)](#run-netassert-this-should-fail)
     + [Apply network policies](#apply-network-policies)
     + [Run netassert (this should pass)](#run-netassert-this-should-pass)
     + [Manually test the pods](#manually-test-the-pods)
-
+- [Configuration](#configuration)
+    + [Test outbound connections from localhost](#test-outbound-connections-from-localhost)
+    + [Test outbound connections from a remote server](#test-outbound-connections-from-a-remote-server)
+    + [Test localhost can reach a remote server, and that the remote server can reach another host](#test-localhost-can-reach-a-remote-server-and-that-the-remote-server-can-reach-another-host)
+    + [Test a Kubernetes pod](#test-a-kubernetes-pod)
+    + [Test Kubernetes pods' intercommunication](#test-kubernetes-pods-intercommunication)
+  * [Example flow for K8S pods](#example-flow-for-k8s-pods)
+  
+  
 ## Why?
 
 The alternative is to `exec` into a container and `curl`, or spin up new pods with the same selectors and `curl` from there. This has lots of problems (extra tools in container image, or tool installation despite immutable root filesystems, or egress prevention). `netassert` aims to fix this:
@@ -39,19 +40,97 @@ More information and background in [this presentation](https://www.binarysludge.
 ## CLI
 
 ```bash
-$ ./netassert --help
 Usage: netassert [options] [filename]
 
 Options:
-  --offline           Assume image is already on target nodes
-  --image             Name of test image (for private/offline registies)
+  --image                Name of test image
+  --offline              Assume image is already on target nodes
+  --timeout              Integer time to wait before giving up on tests (default 120)
+  --ssh-user             SSH user for kubelet host
+  --gcloud-ssh-options   Optional options to pass to the 'gcloud compute ssh' command
 
-  --debug             More debug
+  --debug                More debug
 
-  -h --help           Display this message
+  -h --help              Display this message
 ```
 
-## Configuration
+# Example
+
+### Deploy fake mini-microservices
+```bash
+for DEPLOYMENT_TYPE in \
+  frontend \
+  microservice \
+  database\
+  ; do
+  DEPLOYMENT="test-${DEPLOYMENT_TYPE}"
+
+  kubectl run "${DEPLOYMENT}" \
+    --image=busybox \
+    --labels=app=web,role="${DEPLOYMENT_TYPE}" \
+    --requests='cpu=10m,memory=32Mi' \
+    --expose \
+    --port 80 \
+    -- sh -c "while true; do { printf 'HTTP/1.1 200 OK\r\n\n I am a ${DEPLOYMENT_TYPE}\n'; } | nc -l -p  80; done"
+
+  kubectl scale deployment "${DEPLOYMENT}" --replicas=3
+done
+```
+
+### Run netassert (this should fail)
+
+As we haven't applied network policies, this should **FAIL**.
+
+```bash
+./netassert test/test-k8s.yaml
+```
+
+> Ensure your user has access to the node names output from `kubectl get nodes`. To change the ssh user use
+> `--ssh-user root` or similar. To configure your ssh keys, either use resolvable names for the nodes, or
+> add login directives to `~/.ssh/config` (or use `/etc/hosts` or local DNS for IP resolution):
+> ```bash
+> # ~/.ssh/config
+> Host node-1
+>   HostName 192.168.10.1
+>   User sublimino
+>   IdentityFile ~/.ssh/node-1-key.pem
+> ```
+
+### Apply network policies
+```
+kubectl apply -f resource/net-pol/web-deny-all.yaml
+kubectl apply -f resource/net-pol/test-services-allow.yaml
+```
+
+### Run netassert (this should pass)
+
+Now that we've applied the policies that these tests reflect, this should pass: 
+
+```bash
+./netassert test/test-k8s.yaml
+```
+
+For manual verification of the test results we can `exec` and `curl` in the pods under test (see [why] above for reasons that this is a bad idea).
+
+### Manually test the pods
+```
+kubectl exec -it test-frontend-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-microservice
+kubectl exec -it test-microservice-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-database
+kubectl exec -it test-database-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-frontend
+```
+
+These should all pass as they have equivalent network policies.
+
+The network policies do not allow the `frontend` pods to communicate with the `database` pods.
+
+Let's verify that manually - this should **FAIL**:
+
+```
+kubectl exec -it test-frontend-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-database
+```
+
+
+# Configuration
 
 netassert takes a single YAML file as input. This file lists the hosts to test from, and describes the hosts and ports that it should be able to reach.
 
@@ -192,66 +271,3 @@ k8s:
 1. the same process applies to non-Kubernetes instances accessible via ssh
 
 
-# Example
-
-### Deploy fake mini-microservices
-```bash
-for DEPLOYMENT_TYPE in \
-  frontend \
-  microservice \
-  database\
-  ; do
-  DEPLOYMENT="test-${DEPLOYMENT_TYPE}"
-
-  kubectl run "${DEPLOYMENT}" \
-    --image=busybox \
-    --labels=app=web,role="${DEPLOYMENT_TYPE}" \
-    --requests='cpu=10m,memory=32Mi' \
-    --expose \
-    --port 80 \
-    -- sh -c "while true; do { printf 'HTTP/1.1 200 OK\r\n\n I am a ${DEPLOYMENT_TYPE}\n'; } | nc -l -p  80; done"
-
-  kubectl scale deployment "${DEPLOYMENT}" --replicas=3
-done
-```
-
-### Run netassert (this should fail)
-
-As we haven't applied network policies, this should **FAIL**.
-
-```bash
-./netassert test/test-k8s.yaml
-```
-
-### Apply network policies
-```
-kubectl apply -f resource/net-pol/web-deny-all.yaml
-kubectl apply -f resource/net-pol/test-services-allow.yaml
-```
-
-### Run netassert (this should pass)
-
-Now that we've applied the policies that these tests reflect, this should pass: 
-
-```bash
-./netassert test/test-k8s.yaml
-```
-
-For manual verification of the test results we can `exec` and `curl` in the pods under test (see [why] above for reasons that this is a bad idea).
-
-### Manually test the pods
-```
-kubectl exec -it test-frontend-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-microservice
-kubectl exec -it test-microservice-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-database
-kubectl exec -it test-database-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-frontend
-```
-
-These should all pass as they have equivalent network policies.
-
-The network policies do not allow the `frontend` pods to communicate with the `database` pods.
-
-Let's verify that manually - this should **FAIL**:
-
-```
-kubectl exec -it test-frontend-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test-database
-```
