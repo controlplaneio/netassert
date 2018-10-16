@@ -1,27 +1,58 @@
 NAME := netassert
-PKG := github.com/controlplane/$(NAME)
-REGISTRY := docker.io/controlplane
+GITHUB_ORG := controlplaneio
+DOCKER_HUB_ORG := controlplane
+
+### github.com/controlplaneio/ensure-content.git makefile-header START ###
+ifeq ($(NAME),)
+  $(error NAME required, please add "NAME := project-name" to top of Makefile)
+else ifeq ($(GITHUB_ORG),)
+    $(error GITHUB_ORG required, please add "GITHUB_ORG := controlplaneio" to top of Makefile)
+else ifeq ($(DOCKER_HUB_ORG),)
+    $(error DOCKER_HUB_ORG required, please add "DOCKER_HUB_ORG := controlplane" to top of Makefile)
+endif
+
+PKG := github.com/$(GITHUB_ORG)/$(NAME)
+DOCKER_REGISTRY_FQDN ?= docker.io
+DOCKER_HUB_URL := $(DOCKER_REGISTRY_FQDN)/$(DOCKER_HUB_ORG)/$(NAME)
 
 SHELL := /bin/bash
 BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-GIT_MESSAGE := $(shell git -c log.showSignature=false log --max-count=1 --pretty=format:"%H")
-GIT_SHA := $(shell git log -1 --format=%h)
-GIT_TAG ?= $(shell bash -c 'TAG=$$(git tag | tail -n1); echo "$${TAG:-none}"')
+GIT_MESSAGE := $(shell git -c log.showSignature=false \
+	log --max-count=1 --pretty=format:"%H")
+GIT_SHA := $(shell git -c log.showSignature=false \
+	log -1 --format=%h)
+GIT_TAG := $(shell bash -c 'TAG=$$(git -c log.showSignature=false \
+	describe --tags --exact-match --match "v*" 2>/dev/null | sort | tail -n1); \
+	echo "$${TAG:-none}"')
+GIT_UNTRACKED_CHANGES := $(shell git -c log.showSignature=false \
+	status --porcelain --untracked-files=no)
 
-GIT_UNTRACKED_CHANGES := $(shell git status --porcelain --untracked-files=no)
-ifneq ($(GIT_UNTRACKED_CHANGES),)
-	GIT_COMMIT := $(GIT_COMMIT)-dirty
+ifndef CONTAINER_TAG
+	ifeq ($(GIT_TAG),none)
+		CONTAINER_TAG := $(GIT_SHA)
+	else
+		CONTAINER_TAG := $(GIT_TAG)
+	endif
+	ifneq ($(GIT_UNTRACKED_CHANGES),)
+		CONTAINER_TAG := $(CONTAINER_TAG)-dirty
+	endif
 endif
 
-CONTAINER_TAG ?= $(GIT_TAG)
-CONTAINER_NAME ?= $(REGISTRY)/$(NAME):$(CONTAINER_TAG)
-TEST_CONTAINER_TAG ?= "testing"
-CONTAINER_NAME_TESTING ?= $(REGISTRY)/$(NAME):$(TEST_CONTAINER_TAG)
+CONTAINER_NAME ?= $(DOCKER_HUB_URL):$(CONTAINER_TAG)
+CONTAINER_NAME_LATEST ?= $(DOCKER_HUB_URL):latest
+CONTAINER_NAME_TESTING ?= $(DOCKER_HUB_URL):testing
+
+# golang buildtime, more at https://github.com/jessfraz/pepper/blob/master/Makefile
+CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION)
+GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
+GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
+
+export NAME DOCKER_HUB_URL BUILD_DATE GIT_MESSAGE GIT_SHA GIT_TAG \
+  CONTAINER_TAG CONTAINER_NAME CONTAINER_NAME_LATEST CONTAINER_NAME_TESTING
+### github.com/controlplaneio/ensure-content.git makefile-header END ###
 
 TEST_FILE := "test/test-localhost-remote.yaml"
-
-export NAME REGISTRY BUILD_DATE GIT_MESSAGE GIT_SHA GIT_TAG CONTAINER_TAG CONTAINER_NAME
 
 .PHONY: all test
 .SILENT:
@@ -88,13 +119,13 @@ rollcage-test: ## build, test, and push container, then run local tests
 .PHONY: test
 test: test-deploy ## build, test, and push container, then run local tests
 	@echo "+ $@"
-	make build push CONTAINER_TAG="$(TEST_CONTAINER_TAG)" \
+	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)" \
 		&& ./netassert \
-			--image ${CONTAINER_NAME_TESTING} \
+			--image $(CONTAINER_NAME_TESTING) \
 			test/test-all.yaml \
 		&& make run-in-docker \
 			CONTAINER_NAME=$(CONTAINER_NAME_TESTING) \
-			ARGS='netassert --image ${CONTAINER_NAME_TESTING} test/test-all.yaml'
+			ARGS='netassert --image $(CONTAINER_NAME_TESTING) test/test-all.yaml'
 
 .PHONY: test-local
 test-local: ## test from the local machine
