@@ -185,7 +185,7 @@ configure_parallel() {
 
   mkdir -p "${TMPDIR}" &>/dev/null || true
 
-  (parallel --record-env)
+  (parallel --no-notice --record-env)
   export -f _iterate_k8s_worker _iterate_host_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
 
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER GCLOUD_SSH_OPTIONS
@@ -206,6 +206,7 @@ iterate_host() {
   fi
 
   ${TIMEOUT} parallel \
+    --no-notice \
     --line-buffer \
     --env _ \
     -P 5 \
