@@ -44,9 +44,10 @@ Usage: netassert [options] [filename]
 
 Options:
   --image                Name of test image
-  --offline              Assume image is already on target nodes
+  --no-pull              Don't pull test container on target nodes
   --timeout              Integer time to wait before giving up on tests (default 120)
   --ssh-user             SSH user for kubelet host
+  --known-hosts          A known_hosts file (default: ${HOME}/.ssh/known_hosts)
   --gcloud-ssh-options   Optional options to pass to the 'gcloud compute ssh' command
 
   --debug                More debug
@@ -98,9 +99,9 @@ As we haven't applied network policies, this should **FAIL**.
 ./netassert test/test-k8s.yaml
 ```
 
-> Ensure your user has access to the node names output from `kubectl get nodes`. To change the ssh user use
-> `--ssh-user root` or similar. To configure your ssh keys, either use resolvable names for the nodes, or
-> add login directives to `~/.ssh/config` (or use `/etc/hosts` or local DNS for IP resolution):
+> Ensure your user has SSH access to the node names listed by `kubectl get nodes`. To change the SSH user set
+> `--ssh-user MY_USER`. To configure your ssh keys, use DNS resolvable names (or `/etc/hosts` entries) for the nodes,
+> and/or add login directives to `~/.ssh/config`:
 > ```bash
 > # ~/.ssh/config
 > Host node-1

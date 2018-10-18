@@ -9,9 +9,10 @@
 ##
 ## Options:
 ##   --image                Name of test image
-##   --offline              Assume image is already on target nodes
+##   --no-pull              Don't pull test container on target nodes
 ##   --timeout              Integer time to wait before giving up on tests (default 120)
 ##   --ssh-user             SSH user for kubelet host
+##   --known-hosts          A known_hosts file (default: ${HOME}/.ssh/known_hosts)
 ##   --gcloud-ssh-options   Optional options to pass to the 'gcloud compute ssh' command
 ##
 ##   --debug                More debug
@@ -42,6 +43,7 @@ NETASSERT_IMAGE_NAME="controlplane/netassert:0.1"
 CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 CONFIG=''
+USER_KNOWN_HOSTS_FILE="${HOME}/.ssh/known_hosts"
 GCLOUD_SSH_OPTIONS=""
 TEMP_DIR=''
 TEST_FAILURES=0
@@ -117,6 +119,7 @@ iterate_k8s() {
   fi
 
   ${TIMEOUT} parallel \
+    --no-notice \
     --line-buffer \
     --env _ \
     -P 5 \
@@ -136,7 +139,7 @@ _iterate_k8s_worker() {
   local HOSTS="${1:-}"
 
   if [[ "${HOSTS:-}" == "" ]]; then
-    error "No K8S nodes to test in worker"
+    error "No host provided to worker (K8S)"
   fi
 
   for HOST in ${HOSTS}; do
@@ -177,15 +180,17 @@ _iterate_k8s_worker() {
     <<<"${HOSTS}"
 }
 
+
+
 configure_parallel() {
   PARALLEL_HOME=/tmp/parallel
   SHELL=/bin/bash
   TMPDIR=/tmp/parallel/tmp
-  export PARALLEL_HOME SHELL TMPDIR
+  export PARALLEL_HOME SHELL TMPDIR USER_KNOWN_HOSTS_FILE
 
   mkdir -p "${TMPDIR}" &>/dev/null || true
 
-  (parallel --no-notice --record-env)
+  parallel --no-notice --record-env
   export -f _iterate_k8s_worker _iterate_host_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
 
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER GCLOUD_SSH_OPTIONS
@@ -344,7 +349,9 @@ ssh_to_node() {
     if [[ -n "${SSH_USER}" ]]; then
       HOST="${SSH_USER}@${HOST}"
     fi
-    CONNECTION="ssh -o ConnectTimeout=10 -o BatchMode=yes ${HOST} -tt --"
+    CONNECTION="ssh -tt"
+    CONNECTION+=" -o ConnectTimeout=10 -o UserKnownHostsFile=\"${USER_KNOWN_HOSTS_FILE}\" -o BatchMode=yes"
+    CONNECTION+=" ${HOST} -- "
   fi
 
   info "Connecting to ${HOST}..."
@@ -470,12 +477,17 @@ parse_arguments() {
         not_empty_or_usage "${1:-}"
         SSH_USER="${1}"
         ;;
+      --known-hosts)
+        shift
+        not_empty_or_usage "${1:-}"
+        USER_KNOWN_HOSTS_FILE="${1}"
+        ;;
       --gcloud-ssh-options)
         shift
         not_empty_or_usage "${1:-}"
         GCLOUD_SSH_OPTIONS="${1}"
         ;;
-      --offline)
+      --offline|--no-pull)
         IS_OFFLINE=1
         ;;
       -h | --help) usage ;;
