@@ -8,16 +8,17 @@
 ## Usage: %SCRIPT_NAME% [options] [filename]
 ##
 ## Options:
-##   --image                Name of test image
-##   --no-pull              Don't pull test container on target nodes
-##   --timeout              Integer time to wait before giving up on tests (default 120)
-##   --ssh-user             SSH user for kubelet host
-##   --known-hosts          A known_hosts file (default: ${HOME}/.ssh/known_hosts)
-##   --gcloud-ssh-options   Optional options to pass to the 'gcloud compute ssh' command
+##   --image         Name of test image (default: controlplane/netassert)
+##   --no-pull       Don't pull test container on target nodes (default: false)
+##   --timeout       Integer time to wait before giving up on tests (default: 120)
 ##
-##   --debug                More debug
+##   --ssh-user      SSH user for kubelet nodes
+##   --ssh-options   Optional SSH options (for `ssh` and `gcloud compute ssh` commands)
+##   --known-hosts   A known_hosts file (default: ${HOME}/.ssh/known_hosts)
 ##
-##   -h --help              Display this message
+##   --debug         More debug
+##
+##   -h --help       Display this message
 ##
 
 # exit on error or pipe failure
@@ -44,7 +45,7 @@ CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 CONFIG=''
 USER_KNOWN_HOSTS_FILE="${HOME}/.ssh/known_hosts"
-GCLOUD_SSH_OPTIONS=""
+SSH_OPTIONS=""
 TEMP_DIR=''
 TEST_FAILURES=0
 TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
@@ -189,11 +190,12 @@ configure_parallel() {
   export PARALLEL_HOME SHELL TMPDIR USER_KNOWN_HOSTS_FILE
 
   mkdir -p "${TMPDIR}" &>/dev/null || true
+  mkdir -p ~/.parallel &>/dev/null || true
 
   parallel --no-notice --record-env
   export -f _iterate_k8s_worker _iterate_host_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
 
-  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER GCLOUD_SSH_OPTIONS
+  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER SSH_OPTIONS
 }
 
 iterate_host() {
@@ -315,7 +317,7 @@ _iterate_host_worker() {
 }
 
 to_yaml() {
-  yj
+  ./yj
 }
 
 ssh_to_node() {
@@ -344,14 +346,14 @@ ssh_to_node() {
     CONNECTION='minikube ssh -- -t'
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
-    CONNECTION="gcloud compute ssh "${HOST}" "${GCLOUD_SSH_OPTIONS}" -- -t"
+    CONNECTION="gcloud compute ssh "${HOST}" "${SSH_OPTIONS}" -- -t"
   else
     if [[ -n "${SSH_USER}" ]]; then
       HOST="${SSH_USER}@${HOST}"
     fi
     CONNECTION="ssh -tt"
     CONNECTION+=" -o ConnectTimeout=10 -o UserKnownHostsFile=\"${USER_KNOWN_HOSTS_FILE}\" -o BatchMode=yes"
-    CONNECTION+=" ${HOST} -- "
+    CONNECTION+=" ${SSH_OPTIONS} ${HOST} -- "
   fi
 
   info "Connecting to ${HOST}..."
@@ -442,7 +444,7 @@ read_config() {
 }
 
 check_dependencies() {
-  local DEPS=(jq yj ssh timeout parallel ${*:-})
+  local DEPS=(jq ./yj ssh timeout parallel ${*:-})
 
   for DEP in "${DEPS[@]}"; do
     if [[ -n "${DEP:-}" ]]; then
@@ -482,10 +484,10 @@ parse_arguments() {
         not_empty_or_usage "${1:-}"
         USER_KNOWN_HOSTS_FILE="${1}"
         ;;
-      --gcloud-ssh-options)
+      --gcloud-ssh-options|--ssh-options)
         shift
         not_empty_or_usage "${1:-}"
-        GCLOUD_SSH_OPTIONS="${1}"
+        SSH_OPTIONS="${1}"
         ;;
       --offline|--no-pull)
         IS_OFFLINE=1

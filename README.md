@@ -43,15 +43,16 @@ More information and background in [this presentation](https://www.binarysludge.
 Usage: netassert [options] [filename]
 
 Options:
+    
   --image                Name of test image
   --no-pull              Don't pull test container on target nodes
   --timeout              Integer time to wait before giving up on tests (default 120)
+  
   --ssh-user             SSH user for kubelet host
+  --ssh-options          Optional options to pass to the 'gcloud compute ssh' command
   --known-hosts          A known_hosts file (default: ${HOME}/.ssh/known_hosts)
-  --gcloud-ssh-options   Optional options to pass to the 'gcloud compute ssh' command
-
+  
   --debug                More debug
-
   -h --help              Display this message
 ```
 
