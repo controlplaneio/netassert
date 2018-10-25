@@ -51,6 +51,7 @@ TEST_FAILURES=0
 TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
 IS_OFFLINE=0
 SSH_USER=''
+YJ="yj"
 
 main() {
   handle_arguments "$@"
@@ -181,8 +182,6 @@ _iterate_k8s_worker() {
     <<<"${HOSTS}"
 }
 
-
-
 configure_parallel() {
   PARALLEL_HOME=/tmp/parallel
   SHELL=/bin/bash
@@ -193,9 +192,11 @@ configure_parallel() {
   mkdir -p ~/.parallel &>/dev/null || true
 
   parallel --no-notice --record-env
-  export -f _iterate_k8s_worker _iterate_host_worker jqc success info debug error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
+  export -f _iterate_k8s_worker _iterate_host_worker jqc success \
+    info debug error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
 
-  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER SSH_OPTIONS
+  export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME \
+    DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER SSH_OPTIONS YJ
 }
 
 iterate_host() {
@@ -317,7 +318,7 @@ _iterate_host_worker() {
 }
 
 to_yaml() {
-  ./yj
+  ${YJ}
 }
 
 ssh_to_node() {
@@ -444,7 +445,11 @@ read_config() {
 }
 
 check_dependencies() {
-  local DEPS=(jq ./yj ssh timeout parallel ${*:-})
+  if ! command -v "${YJ}" &>/dev/null; then
+    YJ="${DIR}/${YJ}"
+  fi
+
+  local DEPS=(jq ${YJ} ssh timeout parallel ${*:-})
 
   for DEP in "${DEPS[@]}"; do
     if [[ -n "${DEP:-}" ]]; then
@@ -484,12 +489,12 @@ parse_arguments() {
         not_empty_or_usage "${1:-}"
         USER_KNOWN_HOSTS_FILE="${1}"
         ;;
-      --gcloud-ssh-options|--ssh-options)
+      --gcloud-ssh-options | --ssh-options)
         shift
         not_empty_or_usage "${1:-}"
         SSH_OPTIONS="${1}"
         ;;
-      --offline|--no-pull)
+      --offline | --no-pull)
         IS_OFFLINE=1
         ;;
       -h | --help) usage ;;
@@ -573,7 +578,7 @@ not_empty_or_usage() {
 
 is_integer() {
   case "$1" in
-    ''|*[!0-9]*) usage "Valid integer value required" ;;
+    '' | *[!0-9]*) usage "Valid integer value required" ;;
     *) return 0 ;;
   esac
 }
