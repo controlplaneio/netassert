@@ -41,6 +41,13 @@ pipeline {
             '--cap-add=DAC_OVERRIDE'
         }
       }
+
+      options {
+        timeout(time: 15, unit: 'MINUTES')
+        retry(2)
+        timestamps()
+      }
+
       environment {
         HOME = "/tmp/home/"
         TEST_FILE = "test/test-localhost-remote.yaml"
