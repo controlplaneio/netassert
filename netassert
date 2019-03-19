@@ -246,14 +246,16 @@ _iterate_host_worker() {
   if [[ "${IS_OFFLINE:-}" != 1 ]]; then
     for HOST in ${HOSTS}; do
       if [[ "${HOST}" == 'localhost' ]]; then
-        (echo "Pulling image on $(hostname)" && docker pull "${NETASSERT_IMAGE_NAME}") &
+        (info "$(hostname): pulling image locally" && docker pull "${NETASSERT_IMAGE_NAME}") &
         PIDS+="$! "
+
       else
+        local LOG_MESSAGE=$(info "${HOST}: pulling image remotely")
         ssh \
           ${CONFIG_FILE_FLAG} \
           "${HOST}" \
           -- \
-          bash -c "echo Pulling image on $(hostname) && docker pull ${NETASSERT_IMAGE_NAME}" 2>&1 \
+          bash -c "echo ${LOG_MESSAGE} && docker pull ${NETASSERT_IMAGE_NAME}" 2>&1 \
           | tee -a "${TEMP_DIR}/${HOST}" &
         PIDS+="$! "
       fi
@@ -283,13 +285,13 @@ _iterate_host_worker() {
         npm test -s \
         | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
 
-        warning "${HOST} fail"
+        warning "${HOST}: test fail"
       else
-        success "${HOST} pass"
+        success "${HOST}: test pass"
       fi
     else
 
-      info "Remote test start: ${HOST}"
+      info "${HOST}: remote test start"
 
       if ! \
         ssh \
@@ -309,9 +311,9 @@ _iterate_host_worker() {
           " \
         | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
 
-        warning "${HOST} fail"
+        warning "${HOST}: test fail"
       else
-        success "${HOST} pass"
+        success "${HOST}: test pass"
       fi
     fi
   done <<<"${HOSTS}"
