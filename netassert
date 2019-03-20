@@ -90,10 +90,10 @@ cleanup() {
   present_results
 
   if [[ "${TEST_FAILURES}" -gt 0 ]]; then
-    error "${TEST_FAILURES} failed (${SECONDS}s)"
-  else
-    success "Pass (${SECONDS}s)"
+    exit 1
   fi
+
+  exit 0
 }
 
 is_gke() {
@@ -128,7 +128,7 @@ iterate_k8s() {
     _iterate_k8s_worker \
     ::: "${HOSTS}"
 
-  info "K8S remote test finish"
+  info "K8S tests finished: $(echo ${HOSTS})"
 }
 
 _iterate_k8s_worker() {
@@ -221,7 +221,7 @@ iterate_host() {
     _iterate_host_worker \
     ::: "${HOSTS}"
 
-  info "Remote test finish: ${HOSTS}"
+  info "Host tests finished: $(echo ${HOSTS})"
 }
 
 _iterate_host_worker() {
@@ -278,12 +278,12 @@ _iterate_host_worker() {
 
       if ! \
         docker run -t \
-        --net=host \
-        --name "${CONTAINER_NAME}" \
-        --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
-        "${NETASSERT_IMAGE_NAME}" \
-        npm test -s \
-        | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
+          --net=host \
+          --name "${CONTAINER_NAME}" \
+          --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
+          "${NETASSERT_IMAGE_NAME}" \
+          npm test -s \
+          | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
 
         warning "${HOST}: test fail"
       else
@@ -391,28 +391,57 @@ ssh_to_node() {
 }
 
 present_results() {
-  hr
   local RESULT_COUNT=0
+  local OUTPUT_PASS=""
+  local OUTPUT_FAIL=""
+  local OUTPUT_FAIL_HR=$(printf "%s\n" "${COLOUR_RED}$(hr)${COLOUR_RESET}")
+  local OUTPUT_PASS_HR=$(printf "%s\n" "${COLOUR_GREEN}$(hr)${COLOUR_RESET}")
+
   for RESULT in $(find ${TEMP_DIR}/ -type f); do
     local TEST_NAME="${RESULT/${TEMP_DIR}\//}"
     RESULT_COUNT=$((RESULT_COUNT + 1))
-    info "Results: ${TEST_NAME}"
-    local TAP_RESULT=$(if ! cat "${RESULT}" | grep -E '^TAP version [0-9]+' -A 9999; then
-      cat "${RESULT}"
-    fi)
+    local TAP_RESULT=$(
+      if ! cat "${RESULT}" | grep -E '^TAP version [0-9]+' -A 9999; then
+        cat "${RESULT}"
+      fi
+    )
 
-    echo "${TAP_RESULT}"
     if ! echo "${TAP_RESULT}" \
       | grep -E '^# tests [0-9]+' -A 3 \
       | grep --fixed-strings "# fail 0" &>/dev/null; then
 
       TEST_FAILURES=$((TEST_FAILURES + 1))
-      warning "${TEST_NAME} fail"
+
+      OUTPUT_FAIL+=$(info "Results: ${TEST_NAME}" 2>&1;
+        echo "${TAP_RESULT}";
+        warning "${TEST_NAME} fail" 2>&1;
+        echo "${OUTPUT_FAIL_HR}")
     else
-      success "${TEST_NAME} pass"
+      OUTPUT_PASS+=$(info "Results: ${TEST_NAME}" 2>&1;
+        echo "${TAP_RESULT}";
+        success "${TEST_NAME} pass" 2>&1;
+        echo "${OUTPUT_PASS_HR}")
     fi
-    hr
   done
+
+  local OUTPUT_RESULT=$(
+    if [[ "${TEST_FAILURES}" -gt 0 ]]; then
+      echo "${OUTPUT_FAIL_HR}"
+      warning "${TEST_FAILURES} failed (${SECONDS}s)"
+      echo "${OUTPUT_FAIL_HR}"
+    else
+      echo "${OUTPUT_PASS_HR}"
+      success "Pass (${SECONDS}s)"
+      echo "${OUTPUT_PASS_HR}"
+    fi 2>&1
+  )
+
+  echo "${OUTPUT_RESULT}"
+
+  echo "${OUTPUT_PASS}"
+  echo "${OUTPUT_FAIL}"
+
+  echo "${OUTPUT_RESULT}"
 
   if [[ "${RESULT_COUNT}" == 0 ]]; then
     error "No results found in ${TEMP_DIR} (${SECONDS}s)"
