@@ -2,20 +2,22 @@ import test from 'ava'
 
 const nmap = require('node-nmap')
 nmap.nmapLocation = '/usr/bin/nmap' // default
-const yaml = require('yaml-js');
-const fs = require('fs');
+const yaml = require('yaml-js')
+const fs = require('fs')
 
-const debug = !!process.env.DEBUG
+const debug = (process.env.DEBUG === '0' ? false : (!!process.env.DEBUG ? true : !!process.env.REMOTE_DEBUG))
 process.setMaxListeners(200)
 
-function log() {
+// console.log(`# DEBUG: ${debug} - ENV: ${process.env.DEBUG}`)
+
+function log () {
   if (debug) {
     console.log.apply(null, arguments)
   }
 }
 
-var filename = "test.yaml"
-let contents = fs.readFileSync(filename, 'utf8');
+var filename = 'test.yaml'
+let contents = fs.readFileSync(filename, 'utf8')
 var tests = yaml.load(contents)
 
 const negationOperator = '-'
@@ -26,17 +28,17 @@ const runTests = (tests) => {
   Object.keys(tests).forEach((testType) => {
 
     switch (testType) {
-      case "k8s":
-      case "kubernetes":
+      case 'k8s':
+      case 'kubernetes':
         runKubernetesTests(tests[testType])
-        break;
+        break
 
-      case "host":
-      case "instance":
+      case 'host':
+      case 'instance':
         runHostTests(tests[testType])
-        break;
+        break
       default:
-        console.error(`Unknown test type ${testType}`);
+        console.error(`Unknown test type ${testType}`)
         process.exit(1)
     }
 
@@ -55,15 +57,15 @@ const runHostTests = (tests) => {
   Object.keys(tests).forEach((testType) => {
 
     switch (testType) {
-      case "localhost":
+      case 'localhost':
         runHostLocalTests(tests[testType])
-        break;
+        break
 
       default:
         if (testType.substr(0, 1) === '_') {
           runHostLocalTests(tests[testType])
         } else {
-          console.error(`Unknown test type ${testType}`);
+          console.error(`Unknown test type ${testType}`)
           process.exit(1)
         }
     }
@@ -90,12 +92,12 @@ const runHostLocalTests = (tests) => {
 
     const zeroLengthPorts = portsToTest.filter(x => x == '')
     if (zeroLengthPorts.length > 0) {
-      console.error(`Invalid spec, empty port(s) found [${portsToTest.join(",")}]`);
+      console.error(`Invalid spec, empty port(s) found [${portsToTest.join(',')}]`)
       process.exit(1)
     }
 
     log('all ports to test', portsToTest)
-    log(`test ${host}, ports ${portsToTest.join(",")}`, JSON.stringify(portsToTest))
+    log(`test ${host}, ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
 
     const tcpPortsToTest = portsToTest.filter(tcpOnly)
     tcpPortsToTest.forEach(port => test.cb(openTcp, host, [port]))
@@ -110,11 +112,11 @@ const runHostLocalTests = (tests) => {
 
 // ---
 
-function openTcp(t, host, portsToTest) {
+function openTcp (t, host, portsToTest) {
   assertPortsOpen(t, host, portsToTest, 'tcp')
 }
 
-function openUdp(t, host, portsToTest) {
+function openUdp (t, host, portsToTest) {
   assertPortsOpen(t, host, portsToTest, 'udp')
 }
 
@@ -178,11 +180,11 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   const scanTimeout = 30000
   // -T1 with 10s initial-rtt-timeout and jitter
   nmapQueryString = `${nmapQueryString} --initial-rtt-timeout 10s --max-retries 100 --max-rate 1`
-  nmapQueryString = `${nmapQueryString} --scan-delay ${jitter} --host-timeout ${scanTimeout/1000}s`
+  nmapQueryString = `${nmapQueryString} --scan-delay ${jitter} --host-timeout ${scanTimeout / 1000}s`
 
   let host = hosts[0]
 
-  log("query string: ", nmapQueryString, `for ${protocol}`)
+  log('query string: ', nmapQueryString, `for ${protocol}`)
 
   let quickscan = new nmap.NmapScan(host, `${nmapQueryString}`)
   quickscan.scanTimeout = scanTimeout
@@ -244,7 +246,7 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
 
 // ---
 
-function tcpOnly(ports) {
+function tcpOnly (ports) {
   ports = replaceNegationOperator(ports)
   if (ports.substr(0, 4) === 'TCP:') {
     return true
@@ -252,17 +254,17 @@ function tcpOnly(ports) {
   return ports.substr(0, 4) !== 'UDP:' && ports.substr(0, 5) !== 'ICMP:'
 }
 
-function udpOnly(ports) {
+function udpOnly (ports) {
   return (replaceNegationOperator(ports).substr(0, 4) === 'UDP:')
 }
 
 // TODO(ajm) not implemented
-function icmpOnly(ports) {
+function icmpOnly (ports) {
   return (replaceNegationOperator(ports).substr(0, 5) === 'ICMP:')
 }
 
-function replaceNegationOperator(port) {
-  const regex = new RegExp(`^${negationOperator}`, "g")
+function replaceNegationOperator (port) {
+  const regex = new RegExp(`^${negationOperator}`, 'g')
   return port.replace(regex, '')
 }
 
