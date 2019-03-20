@@ -47,7 +47,7 @@ CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 CONFIG=''
 USER_KNOWN_HOSTS_FILE="${HOME}/.ssh/known_hosts"
-SSH_OPTIONS=""
+SSH_OPTIONS="-o ConnectTimeout=10 -o BatchMode=yes -o UserKnownHostsFile=\"${USER_KNOWN_HOSTS_FILE}\""
 TEMP_DIR=''
 TEST_FAILURES=0
 TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
