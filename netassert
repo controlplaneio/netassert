@@ -16,7 +16,8 @@
 ##   --ssh-options   Optional SSH options (for `ssh` and `gcloud compute ssh` commands)
 ##   --known-hosts   A known_hosts file (default: ${HOME}/.ssh/known_hosts)
 ##
-##   --debug         More debug
+##   --verbose       More output
+##   --debug         Debug output
 ##
 ##   -h --help       Display this message
 ##
@@ -30,6 +31,7 @@ set -o noclobber
 
 # user defaults
 DEBUG=0
+VERBOSE=0
 
 # resolved directory and self
 declare -r DIR=$(cd "$(dirname "$0")" && pwd)
@@ -56,9 +58,9 @@ YJ="yj"
 main() {
   handle_arguments "$@"
 
-  info "Using test file '${FILENAME}'"
-  info "Using Docker image '${NETASSERT_IMAGE_NAME}'"
-  info "Tests will timeout after '${TEST_TIMEOUT}' seconds"
+  verbose "Using test file '${FILENAME}'"
+  verbose "Using Docker image '${NETASSERT_IMAGE_NAME}'"
+  verbose "Tests will timeout after '${TEST_TIMEOUT}' seconds"
 
   check_dependencies
 
@@ -66,7 +68,7 @@ main() {
 
   count_expected_tests
 
-  debug "${CONFIG}"
+  verbose "${CONFIG}"
 
   create_temp_dir
 
@@ -103,7 +105,7 @@ is_gke() {
 iterate_k8s() {
   local HOSTS=$(jqc "${CONFIG}" '.k8s? .deployment? | keys? | .[]?')
   if [[ "${HOSTS:-}" == "" ]]; then
-    info "No K8S nodes to test"
+    verbose "No K8S nodes to test"
     return 0
   fi
 
@@ -151,7 +153,7 @@ _iterate_k8s_worker() {
 
     local TEST_DATA=$(jqc "${CONFIG}" ".k8s | .deployment? .\"${HOST}\" | values")
     TEST_DATA=$(jq --null-input ".host .\"_${HOST}\" |= ${TEST_DATA}")
-    debug "this host: ${TEST_DATA}"
+    verbose "${TEST_DATA}: remote test start"
 
     local NAMESPACE
     if [[ "${HOST}" =~ : ]]; then
@@ -193,7 +195,7 @@ configure_parallel() {
 
   parallel --no-notice --record-env
   export -f _iterate_k8s_worker _iterate_host_worker jqc success \
-    info debug error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
+    info debug verbose error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
 
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME \
     DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER SSH_OPTIONS YJ
@@ -267,14 +269,14 @@ _iterate_host_worker() {
   fi
 
   for HOST in ${HOSTS}; do
-    info "host ${HOST}"
     local TEST_DATA=$(jqc "${CONFIG}" ".. | .host? .\"${HOST}\" | values")
     TEST_DATA=$(jq --null-input ".host .\"_${HOST}\" |= ${TEST_DATA}")
-    debug "this host: ${TEST_DATA}"
 
     CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 
     if [[ "${HOST}" == 'localhost' ]]; then
+
+      info "${HOST}: local test start"
 
       if ! \
         docker run -t \
@@ -500,6 +502,9 @@ parse_arguments() {
         IS_OFFLINE=1
         ;;
       -h | --help) usage ;;
+      --verbose)
+        VERBOSE=1
+        ;;
       --debug)
         DEBUG=1
         set -xe
@@ -536,26 +541,34 @@ success() {
 } 1>&2
 
 info() {
-  [ "${*:-}" ] && INFO="$*" || INFO="Unknown Info"
-  printf "%s\n" "$(log_message_prefix)${COLOUR_WHITE}${INFO}${COLOUR_RESET}"
+  [ "${*:-}" ] && RESPONSE="$*" || RESPONSE="Unknown Info"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_WHITE}${RESPONSE}${COLOUR_RESET}"
+} 1>&2
+
+verbose() {
+  if [[ "${VERBOSE:-}" != 1 ]]; then
+    return
+  fi
+  [ "${*:-}" ] && RESPONSE="$*" || RESPONSE="Unknown Verbose"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_WHITE}${RESPONSE}${COLOUR_RESET}"
 } 1>&2
 
 debug() {
   if [[ "${DEBUG:-}" != 1 ]]; then
     return
   fi
-  [ "${*:-}" ] && INFO="$*" || INFO="Unknown Info"
-  printf "%s\n" "$(log_message_prefix)${COLOUR_WHITE}${INFO}${COLOUR_RESET}"
+  [ "${*:-}" ] && RESPONSE="$*" || RESPONSE="Unknown Debug"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_WHITE}${RESPONSE}${COLOUR_RESET}"
 } 1>&2
 
 warning() {
-  [ "${*:-}" ] && ERROR="$*" || ERROR="Unknown Warning"
-  printf "%s\n" "$(log_message_prefix)${COLOUR_RED}${ERROR}${COLOUR_RESET}"
+  [ "${*:-}" ] && RESPONSE="$*" || ERROR="Unknown Warning"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_RED}${RESPONSE}${COLOUR_RESET}"
 } 1>&2
 
 error() {
-  [ "${*:-}" ] && ERROR="$*" || ERROR="Unknown Error"
-  printf "%s\n" "$(log_message_prefix)${COLOUR_RED}${ERROR}${COLOUR_RESET}"
+  [ "${*:-}" ] && RESPONSE="$*" || RESPONSE="Unknown Error"
+  printf "%s\n" "$(log_message_prefix)${COLOUR_RED}${RESPONSE}${COLOUR_RESET}"
   exit 3
 } 1>&2
 
