@@ -102,6 +102,12 @@ run-in-docker: ## runs the last build docker image inside docker
 			-v ~/.kube/:/root/.kube:ro \
 			-v $${LINK:-/dev/null}:/tmp/ssh-config:ro \
 			-v /var/run/docker.sock:/var/run/docker.sock:ro \
+			\
+			-v "$${KUBECONFIG:-/dev/null}:$${KUBECONFIG:-/dev/null}" \
+			-e KUBECONFIG="${KUBECONFIG}" \
+			\
+			-e DEBUG=0 \
+			\
 			"${CONTAINER_NAME}" ${ARGS}
 
 .PHONY: jenkins
@@ -119,13 +125,23 @@ rollcage-test: ## build, test, and push container, then run local tests
 .PHONY: test
 test: test-deploy ## build, test, and push container, then run local tests
 	@echo "+ $@"
+
+	# TODO(ajm) --ssh-user root not required for GKE?
 	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)" \
-		&& ./netassert \
+		&& \
+		./netassert \
 			--image $(CONTAINER_NAME_TESTING) \
+			--ssh-user root \
+			--ssh-options "-o StrictHostKeyChecking=no" \
 			test/test-all.yaml \
-		&& make run-in-docker \
+		&& \
+		make run-in-docker \
 			CONTAINER_NAME=$(CONTAINER_NAME_TESTING) \
-			ARGS='netassert --image $(CONTAINER_NAME_TESTING) test/test-all.yaml'
+			ARGS='netassert \
+				--image $(CONTAINER_NAME_TESTING) \
+				--ssh-user root \
+				--ssh-options "-o StrictHostKeyChecking=no" \
+				test/test-all.yaml'
 
 .PHONY: test-local
 test-local: ## test from the local machine

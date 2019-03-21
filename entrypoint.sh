@@ -1,9 +1,9 @@
 #!/bin/bash
 
 set -euo pipefail
-DEBUG=1
+DEBUG="${DEBUG:-0}"
 
-if [[ "${DEBUG:-}" != "" ]]; then
+if [[ "${DEBUG:-}" == "1" ]]; then
   set -x
 fi
 
@@ -35,7 +35,7 @@ if [[ ! -f /code/test/test.yaml ]]; then
   exit 1
 fi
 
-if [[ "${DEBUG:-}" != "" ]]; then
+if [[ "${DEBUG:-}" == "1" ]]; then
   pwd
   id
   ls -lasp \
@@ -68,8 +68,24 @@ fi
 chown netassert -R /home/netassert
 
 # TODO(AJM) run without root
-#exec gosu netassert "${@}"
+# sudo setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip /usr/bin/nmap
+# exec gosu netassert "${@}"
+
+# TODO(ajm) remove these root hacks when running rootlessly
+whoami
 pwd
 ls -lasp
+
+mkdir -p ~/.ssh
+cp /home/netassert/.ssh ~/ -a || true
+chown "$(whoami)" -R ${HOME}/.ssh
+
+ls -lasp ~/.ssh || true
+ls -lasp ~/.ssh/ || true
+
+if [[ "${DEBUG:-}" == "1" ]]; then
+  # this file must exist on the host, but not in the container
+  cat ~/.ssh/config || true
+fi
 
 exec "${@}"
