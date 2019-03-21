@@ -87,6 +87,10 @@ push: ## pushes a docker image
 	@echo "+ $@"
 	docker push "${CONTAINER_NAME}"
 
+.PHONY: get-container-tag
+get-container-tag: ## get the container's tag
+	echo "${CONTAINER_NAME}"
+
 .PHONY: run-in-docker
 run-in-docker: ## runs the last build docker image inside docker
 	@echo "+ $@"; \
