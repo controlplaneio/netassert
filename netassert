@@ -47,7 +47,8 @@ CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f1 </proc/sys/kernel/random/uuid)"
 CONFIG=''
 USER_KNOWN_HOSTS_FILE="${HOME}/.ssh/known_hosts"
-SSH_OPTIONS=""
+SSH_USER_OPTIONS=""
+SSH_DEFAULT_OPTIONS="-o ConnectTimeout=10 -o BatchMode=yes -o UserKnownHostsFile=\"${USER_KNOWN_HOSTS_FILE}\""
 TEMP_DIR=''
 TEST_FAILURES=0
 TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
@@ -198,7 +199,7 @@ configure_parallel() {
     info debug verbose error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
 
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME \
-    DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_USER SSH_OPTIONS YJ
+    DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_DEFAULT_OPTIONS SSH_USER SSH_USER_OPTIONS YJ
 }
 
 iterate_host() {
@@ -245,6 +246,9 @@ _iterate_host_worker() {
   fi
   info "Iterating instance targets: $(echo ${HOSTS} | tr ' ' ',')"
 
+
+  local CONNECTION="ssh -tt ${SSH_DEFAULT_OPTIONS} ${SSH_USER_OPTIONS} ${CONFIG_FILE_FLAG} "
+
   if [[ "${IS_OFFLINE:-}" != 1 ]]; then
     for HOST in ${HOSTS}; do
       if [[ "${HOST}" == 'localhost' ]]; then
@@ -253,9 +257,8 @@ _iterate_host_worker() {
 
       else
         local LOG_MESSAGE=$(info "${HOST}: pulling image remotely")
-        ssh \
-          ${CONFIG_FILE_FLAG} \
-          "${HOST}" \
+
+        ${CONNECTION} ${HOST} \
           -- \
           bash -c "echo ${LOG_MESSAGE} && docker pull ${NETASSERT_IMAGE_NAME}" 2>&1 \
           | tee -a "${TEMP_DIR}/${HOST}" &
@@ -296,10 +299,7 @@ _iterate_host_worker() {
       info "${HOST}: remote test start"
 
       if ! \
-        ssh \
-        -tt \
-        ${CONFIG_FILE_FLAG} \
-        "${HOST}" \
+        ${CONNECTION} ${HOST} \
         -- \
         bash -c " \
           trap cleanup EXIT; \
@@ -351,14 +351,12 @@ ssh_to_node() {
     CONNECTION='minikube ssh -- -t'
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
-    CONNECTION="gcloud compute ssh "${HOST}" "${SSH_OPTIONS}" -- -t"
+    CONNECTION="gcloud compute ssh "${HOST}" "${SSH_USER_OPTIONS}" "${SSH_DEFAULT_OPTIONS}" -- -t"
   else
     if [[ -n "${SSH_USER}" ]]; then
       HOST="${SSH_USER}@${HOST}"
     fi
-    CONNECTION="ssh -tt"
-    CONNECTION+=" -o ConnectTimeout=10 -o UserKnownHostsFile=\"${USER_KNOWN_HOSTS_FILE}\" -o BatchMode=yes"
-    CONNECTION+=" ${SSH_OPTIONS} ${HOST} -- "
+    CONNECTION="ssh -tt ${SSH_DEFAULT_OPTIONS} ${SSH_USER_OPTIONS} ${HOST} -- "
   fi
 
   info "Connecting to ${HOST}..."
@@ -496,7 +494,7 @@ parse_arguments() {
       --gcloud-ssh-options | --ssh-options)
         shift
         not_empty_or_usage "${1:-}"
-        SSH_OPTIONS="${1}"
+        SSH_USER_OPTIONS="${1}"
         ;;
       --offline | --no-pull)
         IS_OFFLINE=1
