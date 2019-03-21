@@ -86,6 +86,7 @@ ls -lasp ~/.ssh/ || true
 if [[ "${DEBUG:-}" == "1" ]]; then
   # this file must exist on the host, but not in the container
   cat ~/.ssh/config || true
+  echo "${@}" || true
 fi
 
 exec "${@}"

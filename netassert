@@ -173,8 +173,10 @@ _iterate_k8s_worker() {
       "${NAMESPACE}" \
       "${NETASSERT_IMAGE_NAME}" \
       "npm test -s" \
+      \
       --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
       --env DEBUG="${DEBUG}" \
+      \
       | tee "${TEMP_DIR}/${HOST}" >/dev/null; then
 
       warning "${HOST} fail"
@@ -287,8 +289,8 @@ _iterate_host_worker() {
           --net=host \
           --name "${CONTAINER_NAME}" \
           --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
-          "${NETASSERT_IMAGE_NAME}" \
           --env DEBUG="${DEBUG}" \
+          "${NETASSERT_IMAGE_NAME}" \
           npm test -s \
           | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
 
@@ -373,7 +375,7 @@ ssh_to_node() {
 
   ${CONNECTION} \
     "\
-    set -ex; \
+    set -e; \
     SUDO=""; \
     if ! docker version; then SUDO=sudo; fi; \
     ${PULL_COMMAND} \
@@ -418,12 +420,14 @@ present_results() {
       OUTPUT_FAIL+=$(info "Results: ${TEST_NAME}" 2>&1;
         echo "${TAP_RESULT}";
         warning "${TEST_NAME} fail" 2>&1;
-        echo "${OUTPUT_FAIL_HR}")
+        echo "${OUTPUT_FAIL_HR}"
+        echo)
     else
       OUTPUT_PASS+=$(info "Results: ${TEST_NAME}" 2>&1;
         echo "${TAP_RESULT}";
         success "${TEST_NAME} pass" 2>&1;
-        echo "${OUTPUT_PASS_HR}")
+        echo "${OUTPUT_PASS_HR}"
+        echo)
     fi
   done
 
