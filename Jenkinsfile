@@ -31,7 +31,7 @@ pipeline {
       }
     }
 
-    stage('Test') {
+    stage('Test - host: localhost') {
       agent {
         docker {
           image 'docker.io/controlplane/gcloud-sdk:latest'
@@ -56,6 +56,48 @@ pipeline {
       steps {
         ansiColor('xterm') {
           sh "make jenkins TEST_FILE=${TEST_FILE}"
+        }
+      }
+    }
+
+    stage('Test - k8s: GKE') {
+      agent {
+        docker {
+          image 'docker.io/controlplane/gcloud-sdk:latest'
+          args '-v /var/run/docker.sock:/var/run/docker.sock ' +
+            '--user=root ' +
+            '--cap-drop=ALL ' +
+            '--cap-add=DAC_OVERRIDE'
+        }
+      }
+
+      options {
+        timeout(time: 15, unit: 'MINUTES')
+        retry(2)
+        timestamps()
+      }
+
+      environment {
+        HOME = "/tmp/home/"
+        TEST_FILE = "test/test-localhost-remote.yaml"
+      }
+
+      steps {
+        ansiColor('xterm') {
+          sh """
+            set -euxo pipefail
+            EXIT_CODE=0
+
+            make cluster
+
+            if ! make jenkins TEST_FILE=${TEST_FILE}"; then
+              EXIT_CODE=1
+            fi
+            
+            make kill-cluster
+            
+            exit \${EXIT_CODE}
+          """
         }
       }
     }

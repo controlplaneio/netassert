@@ -63,14 +63,21 @@ all: help
 cluster: ## creates a test GKE cluster
 	@echo "+ $@"
 	gcloud container clusters create \
-	--zone europe-west2-a \
-	--machine-type n1-highcpu-16 \
-	--enable-autorepair \
-	--no-enable-legacy-authorization \
-	--num-nodes 1 \
-	--preemptible \
-	--enable-network-policy \
-	netassert-test
+		--zone europe-west2-a \
+		--machine-type n1-highcpu-16 \
+		--enable-autorepair \
+		--no-enable-legacy-authorization \
+		--num-nodes 1 \
+		--preemptible \
+		--enable-network-policy \
+		netassert-test
+
+.PHONY: cluster-kill
+cluster-kill: ## deletes a test GKE cluster
+	@echo "+ $@"
+	yes | gcloud container clusters delete \
+		--zone europe-west2-a \
+		netassert-test
 
 .PHONY: build
 build: ## builds a docker image
