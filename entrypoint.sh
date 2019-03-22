@@ -72,18 +72,20 @@ chown netassert -R /home/netassert
 # exec gosu netassert "${@}"
 
 # TODO(ajm) remove these root hacks when running rootlessly
-whoami
-pwd
-ls -lasp
+if [[ "${DEBUG:-}" == "1" ]]; then
+  whoami
+  pwd
+  ls -lasp
+fi
 
 mkdir -p ~/.ssh
 cp /home/netassert/.ssh ~/ -a || true
 chown "$(whoami)" -R ${HOME}/.ssh
 
-ls -lasp ~/.ssh || true
-ls -lasp ~/.ssh/ || true
-
 if [[ "${DEBUG:-}" == "1" ]]; then
+  ls -lasp ~/.ssh || true
+  ls -lasp ~/.ssh/ || true
+
   # this file must exist on the host, but not in the container
   cat ~/.ssh/config || true
   echo "${@}" || true

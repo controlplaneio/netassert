@@ -130,12 +130,11 @@ rollcage-test: ## build, test, and push container, then run local tests
 test: test-deploy ## build, test, and push container, then run local tests
 	@echo "+ $@"
 
-	# TODO(ajm) --ssh-user root not required for GKE?
 	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)" \
 		&& \
 		./netassert \
 			--image $(CONTAINER_NAME_TESTING) \
-			--ssh-user root \
+			--ssh-user $${SSH_USER:-root} \
 			--ssh-options "-o StrictHostKeyChecking=no" \
 			test/test-all.yaml \
 		&& \
@@ -143,7 +142,7 @@ test: test-deploy ## build, test, and push container, then run local tests
 			CONTAINER_NAME=$(CONTAINER_NAME_TESTING) \
 			ARGS='netassert \
 				--image $(CONTAINER_NAME_TESTING) \
-				--ssh-user root \
+				--ssh-user $${SSH_USER:-root} \
 				--ssh-options "-o StrictHostKeyChecking=no" \
 				test/test-all.yaml'
 
