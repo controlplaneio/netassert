@@ -356,7 +356,7 @@ ssh_to_node() {
     CONNECTION='minikube ssh -- -t'
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
-    CONNECTION="gcloud compute ssh "${HOST}" "${SSH_USER_OPTIONS}" "${SSH_DEFAULT_OPTIONS}" -- -t"
+    CONNECTION="gcloud compute ssh ${HOST} -- -t ${SSH_USER_OPTIONS} ${SSH_DEFAULT_OPTIONS} "
   else
     if [[ -n "${SSH_USER}" ]]; then
       HOST="${SSH_USER}@${HOST}"
