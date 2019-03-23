@@ -136,7 +136,6 @@ rollcage-test: ## build, test, and push container, then run local tests
 .PHONY: test
 test: test-deploy ## build, test, and push container, then run local tests
 	@echo "+ $@"
-
 	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)" \
 		&& \
 		./netassert \
@@ -145,13 +144,13 @@ test: test-deploy ## build, test, and push container, then run local tests
 			--ssh-options "-o StrictHostKeyChecking=no" \
 			test/test-all.yaml \
 		&& \
-		make run-in-docker \
-			CONTAINER_NAME=$(CONTAINER_NAME_TESTING) \
-			ARGS='netassert \
-				--image $(CONTAINER_NAME_TESTING) \
-				--ssh-user $${SSH_USER:-root} \
-				--ssh-options "-o StrictHostKeyChecking=no" \
-				test/test-all.yaml'
+	bash -c "make run-in-docker \
+		CONTAINER_NAME=$(CONTAINER_NAME_TESTING) \
+		ARGS='netassert \
+			--image $(CONTAINER_NAME_TESTING) \
+			--ssh-user $${SSH_USER:-root} \
+			--ssh-options \"-o StrictHostKeyChecking=no\" \
+			test/test-all.yaml'"
 
 .PHONY: test-local
 test-local: ## test from the local machine
