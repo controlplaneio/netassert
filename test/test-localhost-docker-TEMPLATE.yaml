@@ -1,0 +1,5 @@
+host:
+  localhost:
+    ${DOCKER_HOST_IP}:
+    - TCP:59942
+    - -TCP:80

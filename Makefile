@@ -133,17 +133,64 @@ rollcage-test: ## build, test, and push container, then run local tests
 	@echo "+ $@"
 	make rollcage && ./netassert test/test-all.yaml
 
-.PHONY: test
-test: test-deploy ## build, test, and push container, then run local tests
+.PHONY: test-local-docker
+test-local-docker: ## test against local container
 	@echo "+ $@"
-	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)" \
-		&& \
+
+	# test against local container
+	make build CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+	docker rm --force netassert-http-echo 2>/dev/null || true;
+
+	# start echo server
+	docker run -d -p 59942:59942 \
+		--name netassert-http-echo \
+		hashicorp/http-echo \
+		-listen=:59942 -text 'netassert test endpoint'
+
+	set -x; COUNT=0; \
+	until [[ "$$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' netassert-http-echo)" != "" ]]; do \
+			sleep 0.5; \
+			if [[ $$((COUNT++)) -gt 10 ]]; then echo 'Container did not start'; exit 1; fi; \
+	done;
+
+	# get IP to template into test file
+	bash -euxo pipefail -c " \
+		TMP_TEST_FILE=$$(mktemp); \
+		\
+		cat test/test-localhost-docker-TEMPLATE.yaml \
+			| DOCKER_HOST_IP=$$(docker inspect \
+        	--format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
+        	netassert-http-echo) \
+        	\
+        	envsubst \
+			| tee -a \$${TMP_TEST_FILE}; \
+		\
 		./netassert \
 			--image $(CONTAINER_NAME_TESTING) \
+			--no-pull \
 			--ssh-user $${SSH_USER:-root} \
-			--ssh-options "-o StrictHostKeyChecking=no" \
-			test/test-all.yaml \
-		&& \
+			--ssh-options \"-o StrictHostKeyChecking=no\" \
+			\$${TMP_TEST_FILE}; \
+	"
+
+	docker rm --force netassert-http-echo 2>/dev/null || true;
+
+.PHONY: test
+test: ## build, test, and push container, then run local tests
+
+	# test against local container
+	make test-local-docker
+
+	# test against remote hosts
+	make test-deploy
+	make push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+	./netassert \
+		--image $(CONTAINER_NAME_TESTING) \
+		--ssh-user $${SSH_USER:-root} \
+		--ssh-options "-o StrictHostKeyChecking=no" \
+		test/test-all.yaml
+
+	# test in docker against remote hosts
 	bash -c "make run-in-docker \
 		CONTAINER_NAME=$(CONTAINER_NAME_TESTING) \
 		ARGS='netassert \
