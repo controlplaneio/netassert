@@ -139,6 +139,7 @@ test-local-docker: ## test against local container
 
 	# test against local container
 	make build CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+
 	docker rm --force netassert-http-echo 2>/dev/null || true;
 
 	# start echo server
@@ -147,14 +148,14 @@ test-local-docker: ## test against local container
 		hashicorp/http-echo \
 		-listen=:59942 -text 'netassert test endpoint'
 
-	set -x; COUNT=0; \
+	COUNT=0; \
 	until [[ "$$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' netassert-http-echo)" != "" ]]; do \
 			sleep 0.5; \
 			if [[ $$((COUNT++)) -gt 10 ]]; then echo 'Container did not start'; exit 1; fi; \
 	done;
 
 	# get IP to template into test file
-	bash -euxo pipefail -c " \
+	bash -euo pipefail -c " \
 		TMP_TEST_FILE=$$(mktemp); \
 		\
 		cat test/test-localhost-docker-TEMPLATE.yaml \
@@ -166,6 +167,7 @@ test-local-docker: ## test against local container
 			| tee -a \$${TMP_TEST_FILE}; \
 		\
 		./netassert \
+			--verbose \
 			--image $(CONTAINER_NAME_TESTING) \
 			--no-pull \
 			--ssh-user $${SSH_USER:-root} \

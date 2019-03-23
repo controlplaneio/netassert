@@ -12,6 +12,7 @@ process.setMaxListeners(200)
 
 function log () {
   if (debug) {
+    // process.stdout.write('# ')
     console.log.apply(null, arguments)
   }
 }

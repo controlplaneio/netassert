@@ -79,7 +79,9 @@ if [[ "${DEBUG:-}" == "1" ]]; then
 fi
 
 mkdir -p ~/.ssh
-cp /home/netassert/.ssh ~/ -a || true
+if [[ -d /home/netassert/.ssh ]]; then
+  cp /home/netassert/.ssh ~/ -a || true
+fi
 chown "$(whoami)" -R ${HOME}/.ssh
 
 if [[ "${DEBUG:-}" == "1" ]]; then

@@ -1,3 +1,7 @@
+alias:
+  ${DOCKER_HOST_IP}: echo-server
+  localhost: my nice local host
+
 host:
   localhost:
     ${DOCKER_HOST_IP}:
