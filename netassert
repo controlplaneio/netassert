@@ -16,6 +16,8 @@
 ##   --ssh-options   Optional SSH options (for `ssh` and `gcloud compute ssh` commands)
 ##   --known-hosts   A known_hosts file (default: ${HOME}/.ssh/known_hosts)
 ##
+##   --results-dir   Directory to output results files (default: temporary directory)
+##
 ##   --verbose       More output
 ##   --debug         Debug output
 ##
@@ -50,6 +52,7 @@ USER_KNOWN_HOSTS_FILE="${HOME}/.ssh/known_hosts"
 SSH_USER_OPTIONS=""
 SSH_DEFAULT_OPTIONS="-o ConnectTimeout=10 -o BatchMode=yes -o UserKnownHostsFile=\"${USER_KNOWN_HOSTS_FILE}\""
 TEMP_DIR=''
+RESULTS_DIR=''
 TEST_FAILURES=0
 TEST_TIMEOUT=120 # seconds, including the Docker image's initial pull
 IS_OFFLINE=0
@@ -71,7 +74,7 @@ main() {
 
   verbose "${CONFIG}"
 
-  create_temp_dir
+  create_results_dir
 
   trap cleanup EXIT
 
@@ -443,6 +446,8 @@ present_results() {
     fi 2>&1
   )
 
+  verbose "Results saved in: ${RESULTS_DIR}:"
+
   echo "${OUTPUT_RESULT}"
 
   echo "${OUTPUT_PASS}"
@@ -457,8 +462,14 @@ present_results() {
   fi
 }
 
-create_temp_dir() {
-  TEMP_DIR=$(mktemp -d) # shorthand for alpine/busybox compat
+create_results_dir() {
+  if [[ "${RESULTS_DIR}" != "" ]]; then
+    mkdir -p "${RESULTS_DIR}"
+    TEMP_DIR="${RESULTS_DIR}"
+  else
+    TEMP_DIR=$(mktemp -d) # shorthand for alpine/busybox compat
+    RESULTS_DIR="${TEMP_DIR}"
+  fi
 }
 
 jqc() {
@@ -531,6 +542,11 @@ parse_arguments() {
         shift
         not_empty_or_usage "${1:-}"
         SSH_USER_OPTIONS="${1}"
+        ;;
+      --results-dir)
+        shift
+        not_empty_or_usage "${1:-}"
+        RESULTS_DIR="${1}"
         ;;
       --offline | --no-pull)
         IS_OFFLINE=1
