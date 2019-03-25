@@ -70,6 +70,8 @@ main() {
 
   read_config
 
+  parse_host_map || true
+
   count_expected_tests
 
   verbose "${CONFIG}"
@@ -81,6 +83,34 @@ main() {
   iterate_k8s
 
   iterate_host
+}
+
+get_host_filename() {
+  local HOST="${1:-}"
+  get_host "${HOST}" | base64
+}
+
+get_host() {
+  local HOST="${1:-}"
+
+  if [[ ! "${HOST}" =~ - ]]; then
+    local HOST_CACHE_KEY="HOST_MAP_${HOST//./_}"
+    # attempt to detect invalid cache keys :/
+    if [[ "${!HOST_CACHE_KEY:-}" != "" ]]; then
+      echo "${!HOST_CACHE_KEY} (${HOST})"
+      return 0
+    fi
+  fi
+
+  echo "${HOST}"
+}
+
+# todo(ajm) unsafe
+parse_host_map() {
+  local HOST_ALIAS_MAP=$(jqc "${CONFIG}" -r \
+    ".alias? | to_entries? | map(\"export HOST_MAP_\(.key)='\(.value|tostring)'\") | .[]? | sub(\"\\\.\"; \"_\"; \"g\") ")
+  verbose "${HOST_ALIAS_MAP}"
+  source /dev/stdin < <(echo "${HOST_ALIAS_MAP}") || true
 }
 
 count_expected_tests() {
@@ -180,7 +210,7 @@ _iterate_k8s_worker() {
       --env TEST_YAML=$(echo "${TEST_DATA}" | to_yaml | base64 -w0) \
       --env DEBUG="${DEBUG}" \
       \
-      | tee "${TEMP_DIR}/${HOST}" >/dev/null; then
+      | tee "${TEMP_DIR}/$(get_host_filename ${HOST})" >/dev/null; then
 
       warning "${HOST} fail"
     else
@@ -202,10 +232,12 @@ configure_parallel() {
 
   parallel --no-notice --record-env
   export -f _iterate_k8s_worker _iterate_host_worker jqc success \
-    info debug verbose error warning ssh_to_node log_message_prefix is_gke to_yaml wait_safe
+    info debug verbose error warning ssh_to_node log_message_prefix \
+    is_gke to_yaml wait_safe get_host get_host_filename
 
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME \
-    DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_DEFAULT_OPTIONS SSH_USER SSH_USER_OPTIONS YJ
+    DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_DEFAULT_OPTIONS \
+    SSH_USER SSH_USER_OPTIONS YJ
 }
 
 iterate_host() {
@@ -250,7 +282,7 @@ _iterate_host_worker() {
   if [[ -f /opt/ssh_config ]]; then
     CONFIG_FILE_FLAG="-F /opt/ssh_config"
   fi
-  info "Iterating instance targets: $(echo ${HOSTS} | tr ' ' ',')"
+  verbose "Iterating instance targets: $(echo ${HOSTS} | tr ' ' ',')"
 
 
   local CONNECTION="ssh -tt ${SSH_DEFAULT_OPTIONS} ${SSH_USER_OPTIONS} ${CONFIG_FILE_FLAG} "
@@ -258,16 +290,16 @@ _iterate_host_worker() {
   if [[ "${IS_OFFLINE:-}" != 1 ]]; then
     for HOST in ${HOSTS}; do
       if [[ "${HOST}" == 'localhost' ]]; then
-        (info "$(hostname): pulling image locally" && docker pull "${NETASSERT_IMAGE_NAME}") &
+        (info "$(get_host "$(hostname)"): pulling image locally" && docker pull "${NETASSERT_IMAGE_NAME}") &
         PIDS+="$! "
 
       else
-        local LOG_MESSAGE=$(info "${HOST}: pulling image remotely")
+        local LOG_MESSAGE=$(info "$(get_host "${HOST}"): pulling image remotely")
 
         ${CONNECTION} ${HOST} \
           -- \
           bash -c "echo ${LOG_MESSAGE} && docker pull ${NETASSERT_IMAGE_NAME}" 2>&1 \
-          | tee -a "${TEMP_DIR}/${HOST}" &
+          | tee -a "${TEMP_DIR}/$(get_host_filename "${HOST}")" &
         PIDS+="$! "
       fi
     done
@@ -285,7 +317,7 @@ _iterate_host_worker() {
 
     if [[ "${HOST}" == 'localhost' ]]; then
 
-      info "${HOST}: local test start"
+      info "$(get_host "${HOST}"): local test start"
 
       if ! \
         docker run -t \
@@ -295,15 +327,15 @@ _iterate_host_worker() {
           --env DEBUG="${DEBUG}" \
           "${NETASSERT_IMAGE_NAME}" \
           npm test -s \
-          | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
+          | tee -a "${TEMP_DIR}/$(get_host_filename "${HOST}")" >/dev/null; then
 
-        warning "${HOST}: test fail"
+        warning "$(get_host "${HOST}"): test fail"
       else
-        success "${HOST}: test pass"
+        success "$(get_host "${HOST}"): test pass"
       fi
     else
 
-      info "${HOST}: remote test start"
+      info "$(get_host "${HOST}"): remote test start"
 
       if ! \
         ${CONNECTION} ${HOST} \
@@ -319,11 +351,11 @@ _iterate_host_worker() {
             "${NETASSERT_IMAGE_NAME}" \
             npm test -s \
           " \
-        | tee -a "${TEMP_DIR}/${HOST}" >/dev/null; then
+        | tee -a "${TEMP_DIR}/$(get_host_filename "${HOST}")" >/dev/null; then
 
-        warning "${HOST}: test fail"
+        warning "$(get_host "${HOST}"): test fail"
       else
-        success "${HOST}: test pass"
+        success "$(get_host "${HOST}"): test pass"
       fi
     fi
   done <<<"${HOSTS}"
@@ -367,7 +399,7 @@ ssh_to_node() {
     CONNECTION="ssh -tt ${SSH_DEFAULT_OPTIONS} ${SSH_USER_OPTIONS} ${HOST} -- "
   fi
 
-  info "Connecting to ${HOST}..."
+  info "Connecting to $(get_host "${HOST}")..."
 
   local PULL_COMMAND=""
   if [[ "${IS_OFFLINE:-}" != 1 ]]; then
@@ -405,8 +437,15 @@ present_results() {
   local OUTPUT_FAIL_HR=$(printf "%s\n" "${COLOUR_RED}$(hr)${COLOUR_RESET}")
   local OUTPUT_PASS_HR=$(printf "%s\n" "${COLOUR_GREEN}$(hr)${COLOUR_RESET}")
 
-  for RESULT in $(find ${TEMP_DIR}/ -type f); do
+  # todo(ajm) write aliases into test results at runtime
+  while read ALIAS; do
+    sed "s=${ALIAS}=g" -i "${TEMP_DIR}/"*
+  done < <(jqc "${CONFIG}" -r \
+    ".alias? | to_entries? | map(\"\(.key)=\(.value|tostring) (\(.key))\") | .[]? ")
+
+  while read RESULT; do
     local TEST_NAME="${RESULT/${TEMP_DIR}\//}"
+    TEST_NAME=$(base64 -d <<<"${TEST_NAME}")
     RESULT_COUNT=$((RESULT_COUNT + 1))
     local TAP_RESULT=$(
       if ! cat "${RESULT}" | grep -E '^TAP version [0-9]+' -A 9999; then
@@ -432,7 +471,7 @@ present_results() {
         echo "${OUTPUT_PASS_HR}"
         echo)
     fi
-  done
+  done < <(find ${TEMP_DIR}/ -type f)
 
   local OUTPUT_RESULT=$(
     if [[ "${TEST_FAILURES}" -gt 0 ]]; then
@@ -510,8 +549,8 @@ check_dependencies() {
 }
 
 handle_arguments() {
-  parse_arguments "$@"
-  validate_arguments "$@"
+  parse_arguments "${@}"
+  validate_arguments "${@}"
 }
 
 parse_arguments() {
