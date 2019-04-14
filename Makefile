@@ -133,6 +133,8 @@ rollcage-test: ## build, test, and push container, then run local tests
 	@echo "+ $@"
 	make rollcage && ./netassert test/test-all.yaml
 
+# ---
+
 .PHONY: test-local-docker
 test-local-docker: ## test against local container
 	@echo "+ $@"
@@ -182,23 +184,63 @@ test: ## build, test, and push container, then run local tests
 
 	# test against local container
 	make test-local-docker
+	make test-remote
+	make test-remote-docker
 
-	# test against remote hosts
+.PHONY: test-remote
+test-remote: ## build, test, and push container, then run remote tests
+
 	make test-deploy
-	make push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+
 	./netassert \
 		--image $(CONTAINER_NAME_TESTING) \
 		--ssh-user $${SSH_USER:-root} \
 		--ssh-options "-o StrictHostKeyChecking=no" \
+		$(FLAGS) \
 		test/test-all.yaml
 
-	# test in docker against remote hosts
+.PHONY: test-remote-eks
+test-remote-eks: ## build, test, and push container, then run remote tests
+
+	make test-deploy-eks
+	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+
+	./netassert \
+		--image $(CONTAINER_NAME_TESTING) \
+		--ssh-user $${SSH_USER:-ec2-user} \
+		--ssh-options "-o StrictHostKeyChecking=no" \
+		$(FLAGS) \
+		test/test-eks-5-tier.yaml
+
+.PHONY: test-remote-istio
+test-remote-istio: ## build, test, and push container, then run remote Istio tests
+
+	echo "PREREQUISITE: Working Istio 1.1.2 installation"
+	sleep 1
+
+	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+
+	./netassert \
+		--image $(CONTAINER_NAME_TESTING) \
+		--ssh-user $${SSH_USER:-ec2-user} \
+		--ssh-options "-o StrictHostKeyChecking=no" \
+		$(FLAGS) \
+		test/test-istio-bookinfo.yaml
+
+.PHONY: test-remote-docker
+test-remote-docker: ## build, test, and push container, then run remote tests
+
+	make test-deploy
+	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+
 	bash -c "make run-in-docker \
 		CONTAINER_NAME=$(CONTAINER_NAME_TESTING) \
 		ARGS='netassert \
 			--image $(CONTAINER_NAME_TESTING) \
 			--ssh-user $${SSH_USER:-root} \
 			--ssh-options \"-o StrictHostKeyChecking=no\" \
+			$(FLAGS) \
 			test/test-all.yaml'"
 
 .PHONY: test-local
@@ -207,6 +249,8 @@ test-local: ## test from the local machine
 	./netassert \
 		--image ${CONTAINER_NAME_TESTING} \
 		test/test-all.yaml
+
+# ---
 
 .PHONY: test-deploy
 test-deploy: ## deploy test services
@@ -224,6 +268,7 @@ test-deploy: ## deploy test services
       --requests='cpu=10m,memory=32Mi' \
       --expose \
       --port 80 \
+      --overrides='{ "spec": { "template": { "spec": { "nodeSelector": { "node-role.kubernetes.io/'"$${DEPLOYMENT_TYPE}"'": "'"$${DEPLOYMENT_TYPE}"'" } } } } }' \
       -- sh -c "while true; do { printf 'HTTP/1.1 200 OK\r\n\n I am a $${DEPLOYMENT_TYPE}\n'; } | nc -l -p  80; done"; \
   	\
     kubectl scale deployment "$${DEPLOYMENT}" --replicas=3; \
@@ -231,6 +276,31 @@ test-deploy: ## deploy test services
   \
   kubectl apply -f resource/net-pol/web-deny-all.yaml -f resource/net-pol/test-services-allow.yaml;
 
+.PHONY: test-deploy-eks
+test-deploy-eks: ## deploy test services for 5 tier EKS application
+	@echo "+ $@"
+	set -x; for DEPLOYMENT_TYPE in \
+    web \
+    storage \
+    egress \
+    ; do \
+  	\
+    DEPLOYMENT="test-$${DEPLOYMENT_TYPE}"; \
+    kubectl run "$${DEPLOYMENT}" \
+      --image=busybox \
+      --labels=app=web,role="$${DEPLOYMENT_TYPE}" \
+      --requests='cpu=10m,memory=32Mi' \
+      --expose \
+      --port 80 \
+      --overrides='{ "spec": { "template": { "spec": { "nodeSelector": { "node-role.kubernetes.io/'"$${DEPLOYMENT_TYPE}"'": "'"$${DEPLOYMENT_TYPE}"'" } } } } }' \
+      -- sh -c "while true; do { printf 'HTTP/1.1 200 OK\r\n\n I am a $${DEPLOYMENT_TYPE}\n'; } | nc -l -p  80; done"; \
+  	\
+    kubectl scale deployment "$${DEPLOYMENT}" --replicas=3; \
+  done; \
+  \
+  kubectl apply -f resource/net-pol/web-deny-all.yaml -f resource/net-pol/test-services-allow-eks-5-tier.yaml;
+
+# ---
 
 .PHONY: rollcage
 rollcage: ## build, test, and push the container
