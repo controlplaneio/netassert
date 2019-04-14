@@ -40,6 +40,10 @@ RUN \
   && mkdir -p "${CACHE_DIR}" \
   && chown netassert -R "${CACHE_DIR}"
 
+RUN \
+  cd /usr/share/nmap/scripts \
+  && wget https://gist.githubusercontent.com/sublimino/c357379369808d0f77d3e2fe86fd4611/raw/46e0f95804b9b1bf17bd5005a7cace6da5f7a2d0/http-get.nse
+
 COPY package.json /code/
 RUN npm install
 
