@@ -91,6 +91,9 @@ if [[ "${DEBUG:-}" == "1" ]]; then
   # this file must exist on the host, but not in the container
   cat ~/.ssh/config || true
   echo "${@}" || true
+
+  echo "# Hostname: $(hostname)"
 fi
+
 
 exec "${@}"

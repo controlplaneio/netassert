@@ -375,7 +375,8 @@ ssh_to_node() {
   local CONNECTION=''
   local CONTEXT=$(kubectl config current-context)
   local HOST=$(kubectl get pods --all-namespaces -o wide \
-    | awk "\$1 = /^${NAMESPACE}/ && \$2 = /${TARGET}/ {print \$8}")
+    | awk "\$1 = /^${NAMESPACE}/ && \$2 = /${TARGET}/ {print \$8}" \
+    | grep -v '<none>')
 
   local HOST_COUNT=$(printf "${HOST}" | grep --count '^')
   if [[ "${HOST_COUNT}" -lt 1 ]]; then
@@ -415,7 +416,7 @@ ssh_to_node() {
     if ! docker version; then SUDO=sudo; fi; \
     ${PULL_COMMAND} \
     CONTAINER=\$(\${SUDO} docker ps | grep -Ev '(google_containers/pause| k8s_proxy_)' | grep \"${TARGET}\" | grep \"${NAMESPACE}\" | awk 'NR==1{print \$1}'); \
-    [[ -z \${CONTAINER} ]] && { echo CONTAINER not found; exit 1; }; \
+    [[ -z \${CONTAINER} ]] && { echo \# CONTAINER not found; exit 1; }; \
     { whoami; \${SUDO} docker ps | grep \${CONTAINER}; } >/dev/null; \
     CONTAINER_NAME=\"${THIS_CONTAINER_NAME}\"; \
     cleanup() { docker rm --force \${CONTAINER_NAME} >/dev/null 2>&1; }; \
