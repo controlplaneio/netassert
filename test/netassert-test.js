@@ -98,13 +98,18 @@ const runHostLocalTests = (tests) => {
     }
 
     log('all ports to test', portsToTest)
-    log(`test ${host}, ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
+    log(`test: ${host}, ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
 
     const tcpPortsToTest = portsToTest.filter(tcpOnly)
     tcpPortsToTest.forEach(port => test.cb(openTcp, host, [port]))
 
     const udpPortsToTest = portsToTest.filter(udpOnly)
     udpPortsToTest.forEach(port => test.cb(openUdp, host, [port]))
+
+    const httpPortsToTest = portsToTest.filter(httpOnly)
+    httpPortsToTest.forEach(port => test.cb(openHttp, host, [port]))
+
+    log(`complete: ${host}, ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
 
     log()
   })
@@ -121,6 +126,10 @@ function openUdp (t, host, portsToTest) {
   assertPortsOpen(t, host, portsToTest, 'udp')
 }
 
+function openHttp (t, host, portsToTest) {
+  assertPortsOpen(t, host, portsToTest, 'http')
+}
+
 openTcp.title = (providedTitle, host, expectedPorts) => {
   expectedPorts = getTestName(expectedPorts)
   return `${providedTitle} ${host} TCP:${expectedPorts.join(',')}`.trim()
@@ -129,6 +138,11 @@ openTcp.title = (providedTitle, host, expectedPorts) => {
 openUdp.title = (providedTitle, host, expectedPorts) => {
   expectedPorts = getTestName(expectedPorts)
   return `${providedTitle} ${host} UDP:${expectedPorts.join(',')}`.trim()
+}
+
+openHttp.title = (providedTitle, host, expectedPorts) => {
+  expectedPorts = getTestName(expectedPorts)
+  return `${providedTitle} ${host} HTTP:${expectedPorts.join(',')}`.trim()
 }
 
 const getTestName = (expectedPorts) => {
@@ -142,6 +156,8 @@ const getTestName = (expectedPorts) => {
 // ---
 
 const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
+
+  log('assertPortsOpen start', protocol)
 
   if (!Array.isArray(hosts)) {
     hosts = hosts.split(' ')
@@ -171,10 +187,29 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   log('expected', expectedTests)
   t.plan(expectedTests)
 
-  let nmapQueryString = `-Pn -p ${portsToTest.map((x) => `${protocol.toUpperCase()[0]}:${x}`).join(',')}`
+  let nmapPortsArgument = portsToTest.map((x) => `${protocol.toUpperCase()[0]}:${x}`).join(',')
+  // set HTTP(s) queries to TCP
+  nmapPortsArgument = nmapPortsArgument.replace(/H:/, 'T:')
 
-  if (protocol == 'udp') {
-    nmapQueryString = `-sU -sV ${nmapQueryString}`
+  let nmapQueryString = `-Pn -p ${nmapPortsArgument}`
+
+  switch (protocol) {
+    case 'tcp':
+      nmapQueryString = `${nmapQueryString} -sT` // TCP Connect() scan
+      break
+    case 'udp':
+      nmapQueryString = `-sU -sV ${nmapQueryString}`
+      break
+    case 'http':
+      nmapQueryString = `${nmapQueryString} -sT` // TCP Connect() scan
+      nmapQueryString = `${nmapQueryString} --script=http-get --script-args http-get.path=/,http-get.showResponse` // HTTP GET
+      break
+    case 'https':
+      nmapQueryString = `${nmapQueryString} -sT` // TCP Connect() scan
+      nmapQueryString = `${nmapQueryString} --script=http-get --script-args http-get.path=/,http-get.showResponse,http-get.forceTls` // HTTP GET
+      break
+    default:
+      throw new Error(`Protocol ${protocol} not supported`)
   }
 
   const jitter = (3 * Math.random()).toFixed(3)
@@ -202,18 +237,33 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
       }
 
       scanResults[0].openPorts.forEach((openPort) => {
-        if (openPort.protocol != protocol) {
+        // bypass TCP/UDP protocol checking as HTTP is checked via TCP
+        if (protocol !== 'http' && openPort.protocol !== protocol) {
+          log('protocol fail', protocol, 'vs', openPort.protocol)
           t.fail(`protocol mismatch: ${openPort.protocol} != ${protocol}`)
         }
 
         log(`open port on ${host}`, openPort)
-        foundPorts.push(parseInt(openPort.port, 10))
+        let isExtendedValidationPass = true
+        if (protocol === 'http') {
+          // TODO(ajm) validate status code and allow different paths
+          if (openPort.scriptOutput !== '\n  GET / -> 200 OK\n') {
+            isExtendedValidationPass = false
+          }
+        }
+
+        if (isExtendedValidationPass) {
+          foundPorts.push(parseInt(openPort.port, 10))
+        } else {
+          log(`additional checks failed for ${protocol} on port ${openPort} for ${host}`)
+        }
       })
     }
 
     expectedPorts.forEach(expectedPort => {
-      log('all ports, this one', expectedPort)
+      log('all ports, this one', expectedPort, 'protocol', protocol)
       const isNegation = (expectedPort.substr(0, 1) === negationOperator)
+
       if (isNegation) {
         expectedPort = parseInt(expectedPort.substr(1), 10)
         log('asserting', expectedPort, 'is NOT IN', foundPorts)
@@ -225,6 +275,7 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
       } else {
         log('asserting', expectedPort, 'in', foundPorts)
         expectedPort = parseInt(expectedPort, 10)
+
         t.truthy(
           foundPorts.includes(expectedPort),
           `${host}: expected ${protocol}:${expectedPort} to be open, found [${foundPorts.join(',')}]`
@@ -252,11 +303,16 @@ function tcpOnly (ports) {
   if (ports.substr(0, 4) === 'TCP:') {
     return true
   }
-  return ports.substr(0, 4) !== 'UDP:' && ports.substr(0, 5) !== 'ICMP:'
+  let portsProtocol = ports.split(':')[0]
+  return !['UDP', 'ICMP', 'HTTP'].includes(portsProtocol)
 }
 
 function udpOnly (ports) {
   return (replaceNegationOperator(ports).substr(0, 4) === 'UDP:')
+}
+
+function httpOnly (ports) {
+  return (replaceNegationOperator(ports).substr(0, 5) === 'HTTP:')
 }
 
 // TODO(ajm) not implemented

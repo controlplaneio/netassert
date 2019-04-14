@@ -1,0 +1,7 @@
+k8s:
+  deployment:
+    productpage:
+      reviews: HTTP:80
+
+    details:
+      ratings: -HTTP:80

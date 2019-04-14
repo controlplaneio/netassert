@@ -1,0 +1,46 @@
+# all ingress to `web`
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: test-frontend-allow-services
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+      role: web
+  ingress:
+  - from: []
+---
+# `storage` ingress from `web`
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: test-microservice-allow-services
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+      role: storage
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: web
+          role: web
+---
+# `egress gateway` ingress from `web`
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: test-database-allow-services
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+      role: egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: web
+          role: web

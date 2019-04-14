@@ -1,0 +1,14 @@
+
+k8s:
+  deployment:
+    default:test-web:
+      test-storage: HTTP:80
+      test-egress: HTTP:80
+
+    default:test-storage:
+      test-web.default.svc.cluster.local: HTTP:80
+      test-egress.default.svc.cluster.local: -HTTP:80
+
+    default:test-egress:
+      test-web.default: HTTP:80
+      test-storage.default: -HTTP:80

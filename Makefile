@@ -174,6 +174,7 @@ test-local-docker: ## test against local container
 			--no-pull \
 			--ssh-user $${SSH_USER:-root} \
 			--ssh-options \"-o StrictHostKeyChecking=no\" \
+			$(FLAGS} \
 			\$${TMP_TEST_FILE}; \
 	"
 
@@ -246,9 +247,14 @@ test-remote-docker: ## build, test, and push container, then run remote tests
 .PHONY: test-local
 test-local: ## test from the local machine
 	@echo "+ $@"
+
+	make build CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+
 	./netassert \
 		--image ${CONTAINER_NAME_TESTING} \
-		test/test-all.yaml
+		--no-pull \
+		$(FLAGS) \
+		test/test-local-only.yaml
 
 # ---
 
