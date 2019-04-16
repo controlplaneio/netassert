@@ -1,13 +1,13 @@
 k8s:
   deployment:
-    default:test-frontend:
+    netassert-test:test-frontend:
       test-microservice: 80
       test-database: -80
 
-    default:test-microservice:
-      test-database.default: 80
-      test-frontend.default: 80
+    netassert-test:test-microservice:
+      test-database.netassert-test: 80
+      test-frontend.netassert-test: 80
 
-    default:test-database:
-      test-frontend.default.svc.cluster.local: 80
-      test-microservice.default.svc.cluster.local: -80
+    netassert-test:test-database:
+      test-frontend.netassert-test.svc.cluster.local: 80
+      test-microservice.netassert-test.svc.cluster.local: -80
