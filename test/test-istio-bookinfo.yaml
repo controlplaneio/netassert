@@ -1,7 +1,17 @@
+# https://istio.io/docs/examples/bookinfo/
 k8s:
   deployment:
     productpage:
-      reviews: HTTP:80
+      reviews: HTTP:9080
+      details: HTTP:9080
+      ratings: -HTTP:9080
 
     details:
-      ratings: -HTTP:80
+      productpage: HTTP:9080
+      ratings: -HTTP:9080
+      reviews: -HTTP:9080
+
+    reviews:
+      ratings: HTTP:9080
+      productpage: HTTP:9080
+      details: -HTTP:9080

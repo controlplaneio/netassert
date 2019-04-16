@@ -191,7 +191,8 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   // set HTTP(s) queries to TCP
   nmapPortsArgument = nmapPortsArgument.replace(/H:/, 'T:')
 
-  let nmapQueryString = `-Pn -p ${nmapPortsArgument}`
+  // TODO(ajm) `NSOCK INFO` logs still emitted with debug level 0?
+  let nmapQueryString = `-d0 -Pn -p ${nmapPortsArgument}`
 
   switch (protocol) {
     case 'tcp':
@@ -247,7 +248,9 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
         let isExtendedValidationPass = true
         if (protocol === 'http') {
           // TODO(ajm) validate status code and allow different paths
-          if (openPort.scriptOutput !== '\n  GET / -> 200 OK\n') {
+          if (['\n  GET / -> 403\n'].includes(openPort.scriptOutput)) {
+            isExtendedValidationPass = false
+          } else if (!['\n  GET / -> 200 OK\n', '\n  GET / -> 404\n'].includes(openPort.scriptOutput)) {
             isExtendedValidationPass = false
           }
         }
