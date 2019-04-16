@@ -43,7 +43,7 @@ declare -r THIS_SCRIPT="${DIR}/$(basename "$0")"
 declare -a ARGUMENTS
 EXPECTED_NUM_ARGUMENTS=0
 ARGUMENTS=()
-FILENAME="test/test.yaml"
+FILENAME=""
 NETASSERT_IMAGE_NAME="controlplane/netassert:0.1"
 CONTAINER_BASE_NAME="netassert"
 CONTAINER_NAME="${CONTAINER_BASE_NAME}-$(cut -d- -f5 </proc/sys/kernel/random/uuid)"
@@ -74,7 +74,7 @@ main() {
 
   count_expected_tests
 
-  verbose "${CONFIG}"
+  verbose "Config: ${CONFIG}"
 
   create_results_dir
 
@@ -109,7 +109,7 @@ get_host() {
 parse_host_map() {
   local HOST_ALIAS_MAP=$(jqc "${CONFIG}" -r \
     ".alias? | to_entries? | map(\"export HOST_MAP_\(.key)='\(.value|tostring)'\") | .[]? | sub(\"\\\.\"; \"_\"; \"g\") ")
-  verbose "${HOST_ALIAS_MAP}"
+  verbose "Host alias map: ${HOST_ALIAS_MAP}"
   source /dev/stdin < <(echo "${HOST_ALIAS_MAP}") || true
 }
 
@@ -614,7 +614,8 @@ validate_arguments() {
   [[ "${#ARGUMENTS[@]}" -gt 2 ]] && usage "Only one input file permitted"
   [[ "${#ARGUMENTS[@]}" -gt 0 ]] && FILENAME="${ARGUMENTS[0]}" || true
 
-  [[ -f "${FILENAME}" ]] || error "${FILENAME} not found"
+  [[ "${FILENAME}" == "" ]] && usage "Filename required"
+  [[ -f "${FILENAME}" ]] || error "File ${FILENAME} not found"
 }
 
 # helper functions
