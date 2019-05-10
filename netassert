@@ -59,6 +59,10 @@ IS_OFFLINE=0
 SSH_USER=''
 YJ="yj"
 
+K8S_CURRENT_CONTEXT=$(kubectl config current-context)
+ALL_NODES=''
+ALL_PODS=''
+
 main() {
   handle_arguments "$@"
 
@@ -133,7 +137,20 @@ cleanup() {
 }
 
 is_gke() {
-  [[ $(kubectl get node --output json | jq '.items?[]? .metadata? .labels? ."cloud.google.com/gke-nodepool" | values' | grep '^' -c) -gt 0 ]]
+  if ! is_eks; then
+    if [[ "${ALL_NODES}" == "" ]]; then
+      ALL_NODES=$(kubectl get node --output json)
+    fi
+    [[ "$(echo "${ALL_NODES}" | jq '.items?[]? .metadata? .labels? ."cloud.google.com/gke-nodepool" | values' | grep '^' -c)" -gt 0 ]]
+    return $?
+  fi
+
+  return 1
+}
+
+is_eks() {
+  [[ "${K8S_CURRENT_CONTEXT}" =~ ^arn:aws:eks ]]
+  return $?
 }
 
 iterate_k8s() {
@@ -141,6 +158,11 @@ iterate_k8s() {
   if [[ "${HOSTS:-}" == "" ]]; then
     verbose "No K8S nodes to test"
     return 0
+  fi
+
+  if ! ALL_PODS=$(kubectl get pods --all-namespaces -o wide 2>&1); then
+    warning "Failed to get pods from Kubernetes API server"
+    error "${ALL_PODS}"
   fi
 
   if is_gke; then
@@ -233,11 +255,12 @@ configure_parallel() {
   parallel --no-notice --record-env
   export -f _iterate_k8s_worker _iterate_host_worker jqc success \
     info debug verbose error warning ssh_to_node log_message_prefix \
-    is_gke to_yaml wait_safe get_host get_host_filename
+    is_gke is_eks to_yaml wait_safe get_host get_host_filename
 
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME \
     DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_DEFAULT_OPTIONS \
-    SSH_USER SSH_USER_OPTIONS YJ
+    SSH_USER SSH_USER_OPTIONS YJ ALL_PODS ALL_NODES K8S_CURRENT_CONTEXT \
+    AWS_PROFILE AWS_REGION
 }
 
 iterate_host() {
@@ -373,8 +396,7 @@ ssh_to_node() {
   shift 4
   local FLAGS="${@}"
   local CONNECTION=''
-  local CONTEXT=$(kubectl config current-context)
-  local HOST=$(kubectl get pods --all-namespaces -o wide \
+  local HOST=$(echo "${ALL_PODS}" \
     | awk "\$1 = /^${NAMESPACE}/ && \$2 = /${TARGET}/ {print \$8}" \
     | grep -v '<none>')
 
@@ -388,7 +410,7 @@ ssh_to_node() {
     error "No hosts found for ${TARGET}"
   fi
 
-  if [[ "${CONTEXT}" == 'minikube' ]]; then
+  if [[ "${K8S_CURRENT_CONTEXT}" == 'minikube' ]]; then
     CONNECTION='minikube ssh -- -t'
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
