@@ -496,28 +496,29 @@ present_results() {
     fi
   done < <(find ${TEMP_DIR}/ -type f)
 
-  local OUTPUT_RESULT=$(
-    if [[ "${TEST_FAILURES}" -gt 0 ]]; then
-      echo "${OUTPUT_FAIL_HR}"
-      warning "${TEST_FAILURES} failed (${SECONDS}s)"
-      echo "${OUTPUT_FAIL_HR}"
-    else
-      echo "${OUTPUT_PASS_HR}"
-      success "Pass (${SECONDS}s)"
-      echo "${OUTPUT_PASS_HR}"
-    fi 2>&1
-  )
+  if [[ "${RESULT_COUNT}" -gt 0 ]]; then
+    local OUTPUT_RESULT=$(
+      if [[ "${TEST_FAILURES}" -gt 0 ]]; then
+        echo "${OUTPUT_FAIL_HR}"
+        warning "${TEST_FAILURES} failed (${SECONDS}s)"
+        echo "${OUTPUT_FAIL_HR}"
+      else
+        echo "${OUTPUT_PASS_HR}"
+        success "Pass (${SECONDS}s)"
+        echo "${OUTPUT_PASS_HR}"
+      fi 2>&1
+    )
 
-  verbose "Results saved in: ${RESULTS_DIR}:"
+    verbose "Results saved in: ${RESULTS_DIR}:"
 
-  echo "${OUTPUT_RESULT}"
+    echo "${OUTPUT_RESULT}"
 
-  echo "${OUTPUT_PASS}"
-  echo "${OUTPUT_FAIL}"
+    echo "${OUTPUT_PASS}"
+    echo "${OUTPUT_FAIL}"
 
-  echo "${OUTPUT_RESULT}"
+    echo "${OUTPUT_RESULT}"
 
-  if [[ "${RESULT_COUNT}" == 0 ]]; then
+  elif [[ "${RESULT_COUNT}" == 0 ]]; then
     error "No results found in ${TEMP_DIR} (${SECONDS}s)"
   elif [[ "${RESULT_COUNT}" -ne "${EXPECTED_TESTS}" ]]; then
     error "${EXPECTED_TESTS} tests expected, ${RESULT_COUNT} found (${SECONDS}s)"
