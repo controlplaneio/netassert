@@ -1,8 +1,22 @@
+agentConfigImage = 'docker.io/controlplane/gcloud-sdk:latest'
+agentConfigArgs = '-v /var/run/docker.sock:/var/run/docker.sock ' +
+  '--user=root ' +
+  '--cap-drop=ALL ' +
+  '--cap-add=DAC_OVERRIDE ' +
+  '--cap-add=CHOWN'
+
+def getDockerImageTag() {
+  if (env.GIT_COMMIT == "") {
+    error "GIT_COMMIT value was empty at usage. "
+  }
+  return "${env.BUILD_ID}-${env.GIT_COMMIT}"
+}
+
 pipeline {
   agent none
 
   environment {
-    CONTAINER_TAG = 'latest'
+    DOCKER_IMAGE_TAG = "${getDockerImageTag()}"
     ENVIRONMENT = 'ops'
     GIT_CREDENTIALS = "ssh-key-jenkins-bot"
   }
@@ -14,19 +28,15 @@ pipeline {
       // defines the "agent" aka "jenkins slave"
       agent {
         docker {
-          // always run in this image, it's got latest kubectl and is based from a google-managed image
-          image 'docker.io/controlplane/gcloud-sdk:latest'
-          args '-v /var/run/docker.sock:/var/run/docker.sock ' +
-            '--user=root ' +
-            '--cap-drop=ALL ' +
-            '--cap-add=DAC_OVERRIDE'
+          image agentConfigImage
+          args agentConfigArgs
         }
       }
 
       // here is the actual build for this stage
       steps {
         ansiColor('xterm') {
-          sh 'make build CONTAINER_TAG="${CONTAINER_TAG}"'
+          sh 'make build CONTAINER_TAG="${DOCKER_IMAGE_TAG}"'
         }
       }
     }
@@ -34,11 +44,8 @@ pipeline {
     stage('Test - host: localhost') {
       agent {
         docker {
-          image 'docker.io/controlplane/gcloud-sdk:latest'
-          args '-v /var/run/docker.sock:/var/run/docker.sock ' +
-            '--user=root ' +
-            '--cap-drop=ALL ' +
-            '--cap-add=DAC_OVERRIDE'
+          image agentConfigImage
+          args agentConfigArgs
         }
       }
 
@@ -63,11 +70,8 @@ pipeline {
     stage('Test - k8s: GKE') {
       agent {
         docker {
-          image 'docker.io/controlplane/gcloud-sdk:latest'
-          args '-v /var/run/docker.sock:/var/run/docker.sock ' +
-            '--user=root ' +
-            '--cap-drop=ALL ' +
-            '--cap-add=DAC_OVERRIDE'
+          image agentConfigImage
+          args agentConfigArgs
         }
       }
 
@@ -84,8 +88,9 @@ pipeline {
 
       steps {
         ansiColor('xterm') {
-          sh """
+          sh """#!/bin/bash
             set -euxo pipefail
+            
             EXIT_CODE=0
 
             make cluster
@@ -105,11 +110,8 @@ pipeline {
     stage('Push') {
       agent {
         docker {
-          image 'docker.io/controlplane/gcloud-sdk:latest'
-          args '-v /var/run/docker.sock:/var/run/docker.sock ' +
-            '--user=root ' +
-            '--cap-drop=ALL ' +
-            '--cap-add=DAC_OVERRIDE'
+          image agentConfigImage
+          args agentConfigArgs
         }
       }
 
@@ -125,7 +127,7 @@ pipeline {
               --username '${DOCKER_REGISTRY_CREDENTIALS_USR}' \
               --password-stdin
 
-            make push CONTAINER_TAG='${CONTAINER_TAG}'
+            make push CONTAINER_TAG='${DOCKER_IMAGE_TAG}'
           """
         }
       }
