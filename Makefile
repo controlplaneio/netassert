@@ -194,9 +194,16 @@ test: ## build, test, and push container, then run local tests
 	# test against local container
 	make test-local
 	make test-local-docker
-	make test-remote
+
+	# test against GKE
+	make test-remote-gke
 	make test-remote-docker
+
+	# test against EKS
 	make test-remote-eks
+
+	# TOOD(ajm) deploy Istio before these tests
+	# make test-remote-istio
 
 # ---
 
@@ -211,6 +218,19 @@ test-remote: ## build, test, and push container, then run remote tests
 		--image $(CONTAINER_NAME_TESTING) \
 		--ssh-user $${SSH_USER:-root} \
 		--ssh-options "-o StrictHostKeyChecking=no" \
+		$(FLAGS) \
+		test/test-all.yaml
+
+# ---
+.PHONY: test-remote-gke
+test-remote-gke: ## build, test, and push container, then run remote tests
+	@echo "+ $@"
+
+	make test-deploy
+	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+
+	set -x; ./netassert \
+		--image $(CONTAINER_NAME_TESTING) \
 		$(FLAGS) \
 		test/test-all.yaml
 
@@ -236,10 +256,10 @@ test-remote-eks: ## build, test, and push container, then run remote tests
 test-remote-istio: ## build, test, and push container, then run remote Istio tests
 	@echo "+ $@"
 
-	echo "PREREQUISITE: Working Istio 1.1.2 installation"
+	echo "PREREQUISITE: Working Istio 1.1+ installation, bookinfo, and RBAC"
 	sleep 1
 
-	make test-deploy-eks
+#	make test-deploy-eks
 	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
 
 	set -x; ./netassert \
@@ -315,6 +335,11 @@ test-deploy: ## deploy test services
 .PHONY: test-deploy-eks
 test-deploy-eks: ## deploy test services for 5 tier EKS application
 	@echo "+ $@"
+
+	kubectl config get-contexts \
+		| awk '/arn:aws:eks/{print $2}' \
+		| xargs kubectl config set-context
+
 	kubectl create namespace netassert-test || true
 	set -x; for DEPLOYMENT_TYPE in \
     web \
