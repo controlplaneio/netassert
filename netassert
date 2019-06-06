@@ -388,6 +388,7 @@ to_yaml() {
   ${YJ}
 }
 
+# for kubernetes test ssh flow
 ssh_to_node() {
   local TARGET="${1:-istio-proxy-nginx-ddbfq}"
   local NAMESPACE="${2:-default}"

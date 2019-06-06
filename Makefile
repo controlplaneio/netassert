@@ -256,7 +256,7 @@ test-remote-eks: ## build, test, and push container, then run remote tests
 test-remote-istio: ## build, test, and push container, then run remote Istio tests
 	@echo "+ $@"
 
-	echo "PREREQUISITE: Working Istio 1.1+ installation, bookinfo, and RBAC"
+	echo "PREREQUISITE: Working Istio 1.1.3+ installation"
 	sleep 1
 
 #	make test-deploy-eks
