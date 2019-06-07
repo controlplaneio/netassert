@@ -11,7 +11,17 @@ k8s:
       ratings: -HTTP:9080
       reviews: -HTTP:9080
 
-    reviews:
-      ratings: HTTP:9080
+    reviews-v1:
       productpage: HTTP:9080
+      ratings: -HTTP:9080 # closed for reviews-v1 only, -v2 and -v3 stay open
+      details: -HTTP:9080
+
+    reviews-v2:
+      productpage: HTTP:9080
+      ratings: HTTP:9080
+      details: -HTTP:9080
+
+    reviews-v3:
+      productpage: HTTP:9080
+      ratings: HTTP:9080
       details: -HTTP:9080
