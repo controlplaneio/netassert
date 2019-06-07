@@ -574,7 +574,7 @@ check_dependencies() {
 }
 
 handle_arguments() {
-  parse_arguments "${@}"
+parse_arguments "${@}"
   validate_arguments "${@}"
 }
 

@@ -50,6 +50,7 @@ const runTests = (tests) => {
 const runKubernetesTests = (tests) => {
   log('k8s tests')
 
+  // these are handled by the wrapper script and decomposed until they're host-local instance tests aganst containers
 }
 
 const runHostTests = (tests) => {
@@ -93,12 +94,11 @@ const runHostLocalTests = (tests) => {
 
     const zeroLengthPorts = portsToTest.filter(x => x == '')
     if (zeroLengthPorts.length > 0) {
-      console.error(`Invalid spec, empty port(s) found [${portsToTest.join(',')}]`)
+      console.error(`${host}: Invalid spec, empty port(s) found [${portsToTest.join(',')}]`)
       process.exit(1)
     }
 
-    log('all ports to test', portsToTest)
-    log(`test: ${host}, ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
+    log(`${host}: ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
 
     const tcpPortsToTest = portsToTest.filter(tcpOnly)
     tcpPortsToTest.forEach(port => test.cb(openTcp, host, [port]))
@@ -109,7 +109,7 @@ const runHostLocalTests = (tests) => {
     const httpPortsToTest = portsToTest.filter(httpOnly)
     httpPortsToTest.forEach(port => test.cb(openHttp, host, [port]))
 
-    log(`complete: ${host}, ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
+    log(`${host}: test complete, ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
 
     log()
   })
@@ -157,7 +157,7 @@ const getTestName = (expectedPorts) => {
 
 const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
 
-  log('assertPortsOpen start', protocol)
+  log('assertPortsOpen start', protocol, hosts)
 
   if (!Array.isArray(hosts)) {
     hosts = hosts.split(' ')
@@ -170,6 +170,7 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
     return t.end()
   }
 
+  let host = hosts[0]
   let expectedPorts = portsToTest.map(port => {
     const isNegation = (port.substr(0, 1) === negationOperator)
     port = replaceNegationOperator(port).split(':')
@@ -180,11 +181,13 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
     port = port.split(':')
     return replaceNegationOperator(port[port.length - 1])
   })
-  log('ports to test', portsToTest, portsToTest.length)
-  log('expected ports', expectedPorts, expectedPorts.length)
 
   let expectedTests = hosts.length * portsToTest.length
-  log('expected', expectedTests)
+  log(
+    `${host}: ${portsToTest.length} ports to test:`, portsToTest,
+    `${expectedPorts.length} expected ports`, expectedPorts,
+    `${expectedTests} tests expected`
+  )
   t.plan(expectedTests)
 
   let nmapPortsArgument = portsToTest.map((x) => `${protocol.toUpperCase()[0]}:${x}`).join(',')
@@ -219,17 +222,15 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   nmapQueryString = `${nmapQueryString} --initial-rtt-timeout 10s --max-retries 100 --max-rate 1`
   nmapQueryString = `${nmapQueryString} --scan-delay ${jitter} --host-timeout ${scanTimeout / 1000}s`
 
-  let host = hosts[0]
-
-  log('query string: ', nmapQueryString, `for ${protocol}`)
+  log(`${host}: query string: `, nmapQueryString, `for ${protocol}`)
 
   let quickscan = new nmap.NmapScan(host, `${nmapQueryString}`)
   quickscan.scanTimeout = scanTimeout
   quickscan.on('complete', function (scanResults) {
 
-    log(`results for ${protocol}`)
+    log(`${host}: results for ${protocol}`)
     log(JSON.stringify(scanResults, null, 2))
-    log(`proto ${protocol}:`, JSON.stringify(portsToTest, null, 2))
+    log(`${host}: proto ${protocol}:`, JSON.stringify(portsToTest, null, 2))
 
     let foundPorts = []
     if (scanResults.length && scanResults[0].openPorts) {
@@ -240,12 +241,13 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
       scanResults[0].openPorts.forEach((openPort) => {
         // bypass TCP/UDP protocol checking as HTTP is checked via TCP
         if (protocol !== 'http' && openPort.protocol !== protocol) {
-          log('protocol fail', protocol, 'vs', openPort.protocol)
-          t.fail(`protocol mismatch: ${openPort.protocol} != ${protocol}`)
+          log(`${host}: protocol fail`, protocol, 'vs', openPort.protocol)
+          t.fail(`${host}: protocol mismatch: ${openPort.protocol} != ${protocol}`)
         }
 
         log(`open port on ${host}`, openPort)
         let isExtendedValidationPass = true
+
         if (protocol === 'http') {
           // TODO(ajm) validate status code and allow different paths
           if (['\n  GET / -> 403\n'].includes(openPort.scriptOutput)) {
@@ -258,25 +260,25 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
         if (isExtendedValidationPass) {
           foundPorts.push(parseInt(openPort.port, 10))
         } else {
-          log(`additional checks failed for ${protocol} on port ${openPort} for ${host}`)
+          log(`${host}: additional checks failed for ${protocol} on port ${openPort.port} for ${host}`)
         }
       })
     }
 
     expectedPorts.forEach(expectedPort => {
-      log('all ports, this one', expectedPort, 'protocol', protocol)
+      log(`${host}: all ports, this one`, expectedPort, 'protocol', protocol)
       const isNegation = (expectedPort.substr(0, 1) === negationOperator)
 
       if (isNegation) {
         expectedPort = parseInt(expectedPort.substr(1), 10)
-        log('asserting', expectedPort, 'is NOT IN', foundPorts)
+        log(`${host}: asserting`, expectedPort, 'is NOT IN', foundPorts)
         t.falsy(
           foundPorts.includes(expectedPort),
           `${host}: expected ${protocol}:${expectedPort} to be closed, found [${foundPorts.join(',')}]`
         )
 
       } else {
-        log('asserting', expectedPort, 'in', foundPorts)
+        log(`${host}: asserting`, expectedPort, 'in', foundPorts)
         expectedPort = parseInt(expectedPort, 10)
 
         t.truthy(
@@ -286,7 +288,7 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
       }
     })
 
-    log('done')
+    log(`${host}: done`)
     t.end()
   })
 
