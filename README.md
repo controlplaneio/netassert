@@ -61,7 +61,7 @@ Options:
 ## Prerequisites on host machine
 
 - `jq`
-- `yq`
+- `yj` (checked in to root of this repo, [direct download](https://github.com/controlplaneio/netassert/raw/master/yj))
 - `parallel`
 - `timeout`
 
@@ -149,20 +149,20 @@ kubectl exec -it test-frontend-$YOUR_POD_ID -- wget -qO- --timeout=2 http://test
 
 netassert takes a single YAML file as input. This file lists the hosts to test from, and describes the hosts and ports that it should be able to reach.
 
-It can test from any reachable host, and from Kubernetes pods.
+It can test from any reachable host, and from inside Kubernetes pods.
 
 A simple example:
 
 ```yaml
-host: # used for ssh-accessible hosts
-  localhost: # host to run test from, can be anything accessible via SSH
+host: # child keys must be ssh-accessible hosts
+  localhost: # host to run test from, must be accessible via SSH
     8.8.8.8: UDP:53 # host and ports to test for access
 ```
 
 A full example:
 
 ```yaml
-host: # used for ssh-accessible hosts
+host: # child keys must be ssh-accessible hosts
   localhost: # host to run test from, can be a remote host
     8.8.8.8: UDP:53 # host and ports to test from localhost
     google.co.uk: 443 # if no protocol is specified then TCP is implied
@@ -183,7 +183,7 @@ host: # used for ssh-accessible hosts
     google.com: 443 # this tests google.com:443 is accesible from control-plane.io
 
 
-k8s: # used for Kubernetes pods
+k8s: # child keys must be Kubernetes entities
   deployment: # only deployments currently supported
     test-frontend: # pod name, defaults to `default` namespace
       test-microservice: 80  # `test-microservice` is the DNS name of the target service
