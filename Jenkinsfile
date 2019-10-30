@@ -1,3 +1,5 @@
+#!/usr/bin/env groovy
+
 agentConfigImage = 'docker.io/controlplane/gcloud-sdk:latest'
 agentConfigArgs = '-v /var/run/docker.sock:/var/run/docker.sock ' +
   '--user=root ' +
@@ -19,6 +21,14 @@ pipeline {
     DOCKER_IMAGE_TAG = "${getDockerImageTag()}"
     ENVIRONMENT = 'ops'
     GIT_CREDENTIALS = "ssh-key-jenkins-bot"
+  }
+
+  post {
+    always {
+      node("master") {
+        step([$class: 'ClaimPublisher'])
+      }
+    }
   }
 
   // stages is "all pipeline stages"
