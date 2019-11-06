@@ -537,7 +537,7 @@ check_dependencies() {
     YJ="${DIR}/${YJ}"
   fi
 
-  local DEPS=(jq ${YJ} ssh timeout parallel ${*:-})
+  local DEPS=(jq "${YJ}" ssh timeout parallel ${*:-})
 
   for DEP in "${DEPS[@]}"; do
     if [[ -n "${DEP:-}" ]]; then
