@@ -96,10 +96,21 @@ get_host() {
   if [[ ! "${HOST}" =~ - ]]; then
     local HOST_CACHE_KEY="HOST_MAP_${HOST//./_}"
     # attempt to detect invalid cache keys :/
+    # this code only works when hypen ("-") sign exists in the string, otherwise we will get bad substitution error
+    if [[ $HOST_CACHE_KEY =~ "-" ]]; then
+      if [[ "${!HOST_CACHE_KEY:-}" != "" ]]; then
+        echo "${!HOST_CACHE_KEY} (${HOST})"
+        return 0
+      fi
+    else
+      echo "No hypen '-' character exists in the HOST_CACHE_KEY: ${HOST_CACHE_KEY}, skip invalid cache key check!"
+    fi
+
     if [[ "${!HOST_CACHE_KEY:-}" != "" ]]; then
       echo "${!HOST_CACHE_KEY} (${HOST})"
       return 0
     fi
+
   fi
 
   echo "${HOST}"
