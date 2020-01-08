@@ -103,14 +103,8 @@ get_host() {
         return 0
       fi
     else
-      echo "No hypen '-' character exists in the HOST_CACHE_KEY: ${HOST_CACHE_KEY}, skip invalid cache key check!"
+      warning "No hypen '-' character exists in the HOST_CACHE_KEY: ${HOST_CACHE_KEY}, skip invalid cache key check!"
     fi
-
-    if [[ "${!HOST_CACHE_KEY:-}" != "" ]]; then
-      echo "${!HOST_CACHE_KEY} (${HOST})"
-      return 0
-    fi
-
   fi
 
   echo "${HOST}"
