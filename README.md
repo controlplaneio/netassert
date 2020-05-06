@@ -43,15 +43,15 @@ More information and background in [this presentation](https://www.binarysludge.
 Usage: netassert [options] [filename]
 
 Options:
-    
+
   --image                Name of test image
   --no-pull              Don't pull test container on target nodes
   --timeout              Integer time to wait before giving up on tests (default 120)
-  
+
   --ssh-user             SSH user for kubelet host
   --ssh-options          Optional options to pass to the 'gcloud compute ssh' command
   --known-hosts          A known_hosts file (default: ${HOME}/.ssh/known_hosts)
-  
+
   --debug                More debug
   -h --help              Display this message
 ```
@@ -72,24 +72,15 @@ Options:
 - `docker`
 
 ### Deploy fake mini-microservices
+
 ```bash
-for DEPLOYMENT_TYPE in \
-  frontend \
-  microservice \
-  database\
-  ; do
-  DEPLOYMENT="test-${DEPLOYMENT_TYPE}"
-
-  kubectl run "${DEPLOYMENT}" \
-    --image=busybox \
-    --labels=app=web,role="${DEPLOYMENT_TYPE}" \
-    --requests='cpu=10m,memory=32Mi' \
-    --expose \
-    --port 80 \
-    -- sh -c "while true; do { printf 'HTTP/1.1 200 OK\r\n\n I am a ${DEPLOYMENT_TYPE}\n'; } | nc -l -p  80; done"
-
-  kubectl scale deployment "${DEPLOYMENT}" --replicas=3
-done
+$ kubectl apply -f resource/deployment/demo.yaml
+service/test-database created
+deployment.apps/test-database created
+service/test-frontend created
+deployment.apps/test-frontend created
+service/test-microservice created
+deployment.apps/test-microservice created
 ```
 
 ### Run netassert (this should fail)

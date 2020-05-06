@@ -211,25 +211,11 @@ test-local: ## test from the local machine
 .PHONY: test-deploy
 test-deploy: ## deploy test services
 	@echo "+ $@"
-	set -x; for DEPLOYMENT_TYPE in \
-    frontend \
-    microservice \
-    database \
-    ; do \
-  	\
-    DEPLOYMENT="test-$${DEPLOYMENT_TYPE}"; \
-    kubectl run "$${DEPLOYMENT}" \
-      --image=busybox \
-      --labels=app=web,role="$${DEPLOYMENT_TYPE}" \
-      --requests='cpu=10m,memory=32Mi' \
-      --expose \
-      --port 80 \
-      -- sh -c "while true; do { printf 'HTTP/1.1 200 OK\r\n\n I am a $${DEPLOYMENT_TYPE}\n'; } | nc -l -p  80; done"; \
-  	\
-    kubectl scale deployment "$${DEPLOYMENT}" --replicas=3; \
-  done; \
-  \
-  kubectl apply -f resource/net-pol/web-deny-all.yaml -f resource/net-pol/test-services-allow.yaml;
+	set -x;
+	kubectl apply \
+						-f resource/deployment/demo.yaml \
+						-f resource/net-pol/web-deny-all.yaml \
+						-f resource/net-pol/test-services-allow.yaml;
 
 
 .PHONY: rollcage
