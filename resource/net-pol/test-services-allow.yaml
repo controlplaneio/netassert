@@ -6,7 +6,7 @@ spec:
   podSelector:
     matchLabels:
       app: web
-      role: frontend
+      role: test-frontend
   ingress:
   - from: []
 ---
@@ -18,13 +18,13 @@ spec:
   podSelector:
     matchLabels:
       app: web
-      role: microservice
+      role: test-microservice
   ingress:
   - from:
     - podSelector:
         matchLabels:
           app: web
-          role: frontend
+          role: test-frontend
 ---
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
@@ -34,10 +34,10 @@ spec:
   podSelector:
     matchLabels:
       app: web
-      role: database
+      role: test-database
   ingress:
   - from:
     - podSelector:
         matchLabels:
           app: web
-          role: microservice
+          role: test-microservice
