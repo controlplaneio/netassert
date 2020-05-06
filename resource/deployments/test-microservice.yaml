@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: web
+    role: test-microservice
+  name: test-microservice
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+        app: web
+        role: test-microservice
+  template:
+    metadata:
+      labels:
+        app: web
+        role: test-microservice
+    spec:
+      containers:
+      - args:
+        - sh
+        - -c
+        - while true; do { printf 'HTTP/1.1 200 OK\r\n\n I am a test microservice\n'; } | nc -l -p  80; done
+        image: busybox
+        name: alpine
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        ports:
+        - containerPort: 80
+          protocol: TCP
