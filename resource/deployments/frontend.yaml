@@ -10,12 +10,12 @@ spec:
   selector:
     matchLabels:
         app: web
-        role: frontend
+        role: test-frontend
   template:
     metadata:
       labels:
         app: web
-        role: frontend
+        role: test-frontend
     spec:
       containers:
       - args:

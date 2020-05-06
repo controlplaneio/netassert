@@ -10,12 +10,12 @@ spec:
   selector:
     matchLabels:
         app: web
-        role: database
+        role: test-database
   template:
     metadata:
       labels:
         app: web
-        role: database
+        role: test-database
     spec:
       containers:
       - args:
