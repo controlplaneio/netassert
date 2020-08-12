@@ -68,7 +68,7 @@ const runHostTests = (tests) => {
   })
 }
 
-const { findLocalPortsToTest } = require('../lib/host')
+const { findLocalPortsToTest } = require('../lib/ports')
 
 const runHostLocalTests = (tests) => {
   log('host local tests', tests)
