@@ -119,77 +119,61 @@ const getTestName = (expectedPorts) => {
 
 // ---
 
-const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
+const assertPortsOpen = (t, hosts, ports, protocol = 'tcp') => {
 
   if (!Array.isArray(hosts)) {
     hosts = hosts.split(' ')
   }
 
-  if (portsToTest.length < 1) {
+  if (ports.length < 1) {
     return t.end()
   }
 
   // Remove the protocols preserving the negation operator
   // [ "-TCP:80", "TCP:443" ] -> [ "-80", "443" ]
-  let expectedPorts = portsToTest.map(stripProtocol)
+  const portExpectations = ports.map(stripProtocol)
 
-  // Extract just the port numbers - we'll loop over the results and compre with expectedPorts to check whether they
+  // Extract just the port numbers - we'll loop over the results and compre with portExpectations to check whether they
   // are open or closed
   // [ "-80", "443" ] -> [ "80", "443" ]
-  portsToTest = expectedPorts.map(replaceNegationOperator)
+  const portsToTest = portExpectations.map(replaceNegationOperator)
 
   log('ports to test', portsToTest, portsToTest.length)
-  log('expected ports', expectedPorts, expectedPorts.length)
+  log('expected ports', portExpectations, portExpectations.length)
 
-  let expectedTests = hosts.length * portsToTest.length
-  log('expected', expectedTests)
-  t.plan(expectedTests)
+  // (rem): this is computation is redundant we only ever scan one host in this function
+  const testCount = hosts.length * portsToTest.length
 
-  // TODO(rem): we're only scanning the first host here!
-  scan(hosts[0], portsToTest, protocol, (error, scanResults) => {
+  log('expected', testCount)
+  t.plan(testCount)
+
+  // TODO(rem): we're only scanning the first host here. This function is only ever called with a single host
+  const host = hosts[0]
+  scan(host, portsToTest, protocol, (error, foundPorts) => {
     if (error) {
         log(error)
         t.fail(error)
         return t.end()
     }
 
-    log(`results for ${protocol}`)
-    log(JSON.stringify(scanResults, null, 2))
-    log(`proto ${protocol}:`, JSON.stringify(portsToTest, null, 2))
+    portExpectations.forEach(portExpectation => {
+      log(`all ports, this one ${portExpectation}`)
+      const port = parseInt(portExpectation.substr(1), 10)
+      const closed = isNegation(portExpectation)
 
-    let foundPorts = []
-    if (scanResults.length && scanResults[0].openPorts) {
-      if (scanResults.length > 1) {
-        t.fail(`Only one host supported per scan, found ${scanResults.length}`)
-      }
-
-      scanResults[0].openPorts.forEach((openPort) => {
-        if (openPort.protocol != protocol) {
-          t.fail(`protocol mismatch: ${openPort.protocol} != ${protocol}`)
-        }
-
-        log(`open port on ${host}`, openPort)
-        foundPorts.push(parseInt(openPort.port, 10))
-      })
-    }
-
-    expectedPorts.forEach(expectedPort => {
-      log('all ports, this one', expectedPort)
-      const closed = isNegation(port)
       if (closed) {
-        expectedPort = parseInt(expectedPort.substr(1), 10)
-        log('asserting', expectedPort, 'is NOT IN', foundPorts)
+        log(`asserting ${port}, is NOT IN, ${foundPorts}`)
         t.falsy(
-          foundPorts.includes(expectedPort),
-          `${host}: expected ${protocol}:${expectedPort} to be closed, found [${foundPorts.join(',')}]`
+          foundPorts.includes(port),
+          `${host}: expected ${protocol}:${port} to be closed, found [${foundPorts.join(',')}]`
         )
 
       } else {
-        log('asserting', expectedPort, 'in', foundPorts)
-        expectedPort = parseInt(expectedPort, 10)
+        log('asserting', portExpectation, 'in', foundPorts)
+        portExpectation = parseInt(portExpectation, 10)
         t.truthy(
-          foundPorts.includes(expectedPort),
-          `${host}: expected ${protocol}:${expectedPort} to be open, found [${foundPorts.join(',')}]`
+          foundPorts.includes(portExpectation),
+          `${host}: expected ${protocol}:${portExpectation} to be open, found [${foundPorts.join(',')}]`
         )
       }
     })
