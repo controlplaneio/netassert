@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "test:unit": "ava lib/**/*-test.js",
     "test": "bash -c 'APP=\"ava --tap --concurrency=2\"; if false; then echo \"WARNING: UDP requires root (currently $(whoami)). Requesting sudo\"; sudo ${APP}; else ${APP}; fi'"
   },
   "repository": {
@@ -17,7 +18,7 @@
   },
   "homepage": "https://github.com/sublimino/talk-assert-network#readme",
   "dependencies": {
-    "ava": "^0.15.2",
+    "ava": "^3.0.0",
     "node-nmap": "git+https://github.com/sublimino/node-nmap.git",
     "yaml-js": "^0.2.3"
   }

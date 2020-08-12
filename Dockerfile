@@ -46,6 +46,7 @@ RUN npm install
 
 # TODO(ajm) netassert doesn't run in the container yet
 COPY test/ /code/test/
+COPY lib/ /code/lib/
 COPY entrypoint.sh yj netassert /usr/local/bin/
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

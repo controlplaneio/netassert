@@ -1,9 +1,12 @@
-import test from 'ava'
+const test = require('ava')
 
 const nmap = require('node-nmap')
 nmap.nmapLocation = '/usr/bin/nmap' // default
 const yaml = require('yaml-js')
 const fs = require('fs')
+const { join } = require('path')
+
+const { NEGATION_OPERATOR, replaceNegationOperator } = require('../lib/util')
 
 const debug = (process.env.DEBUG === '0' ? false : (!!process.env.DEBUG ? true : !!process.env.REMOTE_DEBUG))
 process.setMaxListeners(200)
@@ -17,11 +20,9 @@ function log () {
   }
 }
 
-var filename = 'test.yaml'
-let contents = fs.readFileSync(filename, 'utf8')
-var tests = yaml.load(contents)
-
-const negationOperator = '-'
+const filename = 'test.yaml'
+const contents = fs.readFileSync(join(__dirname, filename), 'utf8')
+const tests = yaml.load(contents)
 
 log(tests)
 
@@ -133,7 +134,7 @@ openUdp.title = (providedTitle, host, expectedPorts) => {
 
 const getTestName = (expectedPorts) => {
   return expectedPorts.map(port => {
-    const isNegation = (port.substr(0, 1) === negationOperator)
+    const isNegation = (port.substr(0, 1) === NEGATION_OPERATOR)
     port = replaceNegationOperator(port).split(':')
     return `${port[port.length - 1]} ${isNegation ? 'closed' : 'open'}`
   })
@@ -155,9 +156,9 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   }
 
   let expectedPorts = portsToTest.map(port => {
-    const isNegation = (port.substr(0, 1) === negationOperator)
+    const isNegation = (port.substr(0, 1) === NEGATION_OPERATOR)
     port = replaceNegationOperator(port).split(':')
-    return (isNegation ? negationOperator : '') + port[port.length - 1]
+    return (isNegation ? NEGATION_OPERATOR : '') + port[port.length - 1]
   })
 
   portsToTest = portsToTest.map(port => {
@@ -213,7 +214,7 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
 
     expectedPorts.forEach(expectedPort => {
       log('all ports, this one', expectedPort)
-      const isNegation = (expectedPort.substr(0, 1) === negationOperator)
+      const isNegation = (expectedPort.substr(0, 1) === NEGATION_OPERATOR)
       if (isNegation) {
         expectedPort = parseInt(expectedPort.substr(1), 10)
         log('asserting', expectedPort, 'is NOT IN', foundPorts)
@@ -262,11 +263,6 @@ function udpOnly (ports) {
 // TODO(ajm) not implemented
 function icmpOnly (ports) {
   return (replaceNegationOperator(ports).substr(0, 5) === 'ICMP:')
-}
-
-function replaceNegationOperator (port) {
-  const regex = new RegExp(`^${negationOperator}`, 'g')
-  return port.replace(regex, '')
 }
 
 runTests(tests)
