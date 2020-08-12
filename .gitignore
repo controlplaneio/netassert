@@ -64,3 +64,4 @@ includes/_SECRET
 *.orig
 
 !lib/
+/node_modules/
