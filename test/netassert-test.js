@@ -72,27 +72,13 @@ const runHostTests = (tests) => {
   })
 }
 
-const splitPortsString = (ports) => {
-  return ports.toString().split(/[\s,]+/)
-}
+const { findLocalPortsToTest } = require('../lib/host')
 
 const runHostLocalTests = (tests) => {
   log('host local tests', tests)
 
   Object.keys(tests).forEach((host) => {
-    var portsToTest = tests[host]
-    if (!Array.isArray(portsToTest)) {
-      portsToTest = splitPortsString(portsToTest)
-    } else {
-      portsToTest = portsToTest.map(port => splitPortsString(port))
-      portsToTest = [].concat.apply([], portsToTest)
-    }
-
-    const zeroLengthPorts = portsToTest.filter(x => x == '')
-    if (zeroLengthPorts.length > 0) {
-      console.error(`Invalid spec, empty port(s) found [${portsToTest.join(',')}]`)
-      process.exit(1)
-    }
+    var portsToTest = findLocalPortsToTest(tests[host])
 
     log('all ports to test', portsToTest)
     log(`test ${host}, ports ${portsToTest.join(',')}`, JSON.stringify(portsToTest))
