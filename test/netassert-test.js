@@ -4,7 +4,7 @@ const nmap = require('node-nmap')
 nmap.nmapLocation = '/usr/bin/nmap' // default
 const { join } = require('path')
 
-const { NEGATION_OPERATOR, replaceNegationOperator } = require('../lib/util')
+const { isNegation, replaceNegationOperator, findLocalPortsToTest, stripProtocol } = require('../lib/ports')
 const { loadTests } = require('../lib/io')
 
 const debug = (process.env.DEBUG === '0' ? false : (!!process.env.DEBUG ? true : !!process.env.REMOTE_DEBUG))
@@ -68,8 +68,6 @@ const runHostTests = (tests) => {
   })
 }
 
-const { findLocalPortsToTest } = require('../lib/ports')
-
 const runHostLocalTests = (tests) => {
   log('host local tests', tests)
 
@@ -112,9 +110,9 @@ openUdp.title = (providedTitle, host, expectedPorts) => {
 
 const getTestName = (expectedPorts) => {
   return expectedPorts.map(port => {
-    const isNegation = (port.substr(0, 1) === NEGATION_OPERATOR)
+    const closed = isNegation(port)
     port = replaceNegationOperator(port).split(':')
-    return `${port[port.length - 1]} ${isNegation ? 'closed' : 'open'}`
+    return `${port[port.length - 1]} ${closed ? 'closed' : 'open'}`
   })
 }
 
@@ -130,16 +128,15 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
     return t.end()
   }
 
-  let expectedPorts = portsToTest.map(port => {
-    const isNegation = (port.substr(0, 1) === NEGATION_OPERATOR)
-    port = replaceNegationOperator(port).split(':')
-    return (isNegation ? NEGATION_OPERATOR : '') + port[port.length - 1]
-  })
+  // Remove the protocols preserving the negation operator
+  let expectedPorts = portsToTest.map(stripProtocol)
 
-  portsToTest = portsToTest.map(port => {
-    port = port.split(':')
+  // Extract just the port numbers - we'll loop over the results and compre with expectedPorts to check whether they
+  // are open or closed
+  portsToTest = expectedPorts.map(port => {
     return replaceNegationOperator(port[port.length - 1])
   })
+
   log('ports to test', portsToTest, portsToTest.length)
   log('expected ports', expectedPorts, expectedPorts.length)
 
@@ -189,8 +186,8 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
 
     expectedPorts.forEach(expectedPort => {
       log('all ports, this one', expectedPort)
-      const isNegation = (expectedPort.substr(0, 1) === NEGATION_OPERATOR)
-      if (isNegation) {
+      const closed = isNegation(port)
+      if (closed) {
         expectedPort = parseInt(expectedPort.substr(1), 10)
         log('asserting', expectedPort, 'is NOT IN', foundPorts)
         t.falsy(
