@@ -5,7 +5,7 @@ nmap.nmapLocation = '/usr/bin/nmap' // default
 const { join } = require('path')
 
 const { isNegation, replaceNegationOperator, findLocalPortsToTest, stripProtocol } = require('../lib/ports')
-const { buildNmapOptions, scan, SCAN_TIMEOUT_MILLIS } = require('../lib/scanner')
+const { scan } = require('../lib/scanner')
 const { loadTests } = require('../lib/io')
 const { log } = require('../log/log')
 
@@ -14,7 +14,6 @@ log(tests)
 
 const runTests = (tests) => {
   Object.keys(tests).forEach((testType) => {
-
     switch (testType) {
       case 'k8s':
       case 'kubernetes':
@@ -39,7 +38,6 @@ const runHostTests = (tests) => {
   log('host tests', tests)
 
   Object.keys(tests).forEach((testType) => {
-
     switch (testType) {
       case 'localhost':
         runHostLocalTests(tests[testType])
@@ -109,7 +107,6 @@ const getTestName = (expectedPorts) => {
 // ---
 
 const assertPortsOpen = (t, hosts, ports, protocol = 'tcp') => {
-
   if (!Array.isArray(hosts)) {
     hosts = hosts.split(' ')
   }
@@ -140,9 +137,9 @@ const assertPortsOpen = (t, hosts, ports, protocol = 'tcp') => {
   const host = hosts[0]
   scan(host, portsToTest, protocol, (error, foundPorts) => {
     if (error) {
-        log(error)
-        t.fail(error)
-        return t.end()
+      log(error)
+      t.fail(error)
+      return t.end()
     }
 
     portExpectations.forEach(portExpectation => {
@@ -156,7 +153,6 @@ const assertPortsOpen = (t, hosts, ports, protocol = 'tcp') => {
           foundPorts.includes(port),
           `${host}: expected ${protocol}:${port} to be closed, found [${foundPorts.join(',')}]`
         )
-
       } else {
         log('asserting', portExpectation, 'in', foundPorts)
         portExpectation = parseInt(portExpectation, 10)
@@ -184,11 +180,6 @@ function tcpOnly (ports) {
 
 function udpOnly (ports) {
   return (replaceNegationOperator(ports).substr(0, 4) === 'UDP:')
-}
-
-// TODO(ajm) not implemented
-function icmpOnly (ports) {
-  return (replaceNegationOperator(ports).substr(0, 5) === 'ICMP:')
 }
 
 runTests(tests)
