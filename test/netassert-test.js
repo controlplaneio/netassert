@@ -5,7 +5,7 @@ nmap.nmapLocation = '/usr/bin/nmap' // default
 const { join } = require('path')
 
 const { isNegation, replaceNegationOperator, findLocalPortsToTest, stripProtocol } = require('../lib/ports')
-const { buildNmapOptions, SCAN_TIMEOUT_MILLIS } = require('../lib/ports')
+const { buildNmapOptions, scan, SCAN_TIMEOUT_MILLIS } = require('../lib/scanner')
 const { loadTests } = require('../lib/io')
 
 const debug = (process.env.DEBUG === '0' ? false : (!!process.env.DEBUG ? true : !!process.env.REMOTE_DEBUG))
@@ -145,13 +145,13 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   log('expected', expectedTests)
   t.plan(expectedTests)
 
-  const nmapOptions = buildNmapOptions(portsToTest, protocol)
-
-  log(`query string: ${nmapOptions}, for ${protocol}`)
-
-  let quickscan = new nmap.NmapScan(host, nmapOptions)
-  quickscan.scanTimeout = SCAN_TIMEOUT_MILLIS
-  quickscan.on('complete', function (scanResults) {
+  // TODO(rem): we're only scanning the first host here!
+  scan(hosts[0], portsToTest, protocol, (error, scanResults) => {
+    if (error) {
+        log(error)
+        t.fail(error)
+        return t.end()
+    }
 
     log(`results for ${protocol}`)
     log(JSON.stringify(scanResults, null, 2))
@@ -197,14 +197,6 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
     log('done')
     t.end()
   })
-
-  quickscan.on('error', function (error) {
-    log(error)
-    t.fail(error)
-    t.end()
-  })
-
-  quickscan.startScan()
 }
 
 // ---
