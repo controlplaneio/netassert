@@ -179,6 +179,8 @@ test-local-docker: ## test against local container
 
 .PHONY: test
 test: ## build, test, and push container, then run local tests
+	# Run unit tests
+	npm run test:unit
 
 	# test against local container
 	make test-local-docker
