@@ -2,11 +2,10 @@ const test = require('ava')
 
 const nmap = require('node-nmap')
 nmap.nmapLocation = '/usr/bin/nmap' // default
-const yaml = require('yaml-js')
-const fs = require('fs')
 const { join } = require('path')
 
 const { NEGATION_OPERATOR, replaceNegationOperator } = require('../lib/util')
+const { loadTests } = require('../lib/io')
 
 const debug = (process.env.DEBUG === '0' ? false : (!!process.env.DEBUG ? true : !!process.env.REMOTE_DEBUG))
 process.setMaxListeners(200)
@@ -20,10 +19,7 @@ function log () {
   }
 }
 
-const filename = 'test.yaml'
-const contents = fs.readFileSync(join(__dirname, filename), 'utf8')
-const tests = yaml.load(contents)
-
+const tests = loadTests(join(__dirname, 'test.yaml'))
 log(tests)
 
 const runTests = (tests) => {

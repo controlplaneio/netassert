@@ -19,7 +19,7 @@
   "homepage": "https://github.com/sublimino/talk-assert-network#readme",
   "dependencies": {
     "ava": "^3.0.0",
-    "node-nmap": "git+https://github.com/sublimino/node-nmap.git",
-    "yaml-js": "^0.2.3"
+    "js-yaml": "^3.14.0",
+    "node-nmap": "git+https://github.com/sublimino/node-nmap.git"
   }
 }
