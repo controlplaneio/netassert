@@ -28,7 +28,8 @@ const runTests = (tests) => {
     switch (testType) {
       case 'k8s':
       case 'kubernetes':
-        runKubernetesTests(tests[testType])
+        log('k8s tests')
+        log('NOT IMPLEMENTED')
         break
 
       case 'host':
@@ -42,11 +43,6 @@ const runTests = (tests) => {
 
     log()
   })
-}
-
-const runKubernetesTests = (tests) => {
-  log('k8s tests')
-
 }
 
 const runHostTests = (tests) => {
@@ -130,9 +126,6 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
     hosts = hosts.split(' ')
   }
 
-  if (!Array.isArray(portsToTest)) {
-    portsToTest = [portsToTest]
-  }
   if (portsToTest.length < 1) {
     return t.end()
   }
