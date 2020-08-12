@@ -3,9 +3,15 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "ava": {
+    "files": [
+      "lib/**/*-test.js",
+      "test/**/*.js"
+    ]
+  },
   "scripts": {
     "test:unit": "ava lib/**/*-test.js",
-    "test": "bash -c 'APP=\"ava --tap --concurrency=2\"; if false; then echo \"WARNING: UDP requires root (currently $(whoami)). Requesting sudo\"; sudo ${APP}; else ${APP}; fi'"
+    "test": "bash -c 'APP=\"ava --tap --concurrency=2 test/netassert.js\"; if false; then echo \"WARNING: UDP requires root (currently $(whoami)). Requesting sudo\"; sudo ${APP}; else ${APP}; fi'"
   },
   "repository": {
     "type": "git",
