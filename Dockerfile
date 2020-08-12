@@ -7,13 +7,14 @@ ENV GOSU_VERSION="1.10"
 RUN \
   DEBIAN_FRONTEND=noninteractive \
     apt update && apt install --assume-yes --no-install-recommends \
+      curl \
+      software-properties-common \
+      && curl -sL https://deb.nodesource.com/setup_12.x | bash - \
+      && apt-get update \
+      && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends  \
       bash \
       ca-certificates \
-      curl \
       nodejs \
-      node-gyp \
-      libnode-dev \
-      npm \
       nmap \
       jq \
       parallel \
