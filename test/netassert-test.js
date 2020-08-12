@@ -7,18 +7,7 @@ const { join } = require('path')
 const { isNegation, replaceNegationOperator, findLocalPortsToTest, stripProtocol } = require('../lib/ports')
 const { buildNmapOptions, scan, SCAN_TIMEOUT_MILLIS } = require('../lib/scanner')
 const { loadTests } = require('../lib/io')
-
-const debug = (process.env.DEBUG === '0' ? false : (!!process.env.DEBUG ? true : !!process.env.REMOTE_DEBUG))
-process.setMaxListeners(200)
-
-// console.log(`# DEBUG: ${debug} - ENV: ${process.env.DEBUG}`)
-
-function log () {
-  if (debug) {
-    // process.stdout.write('# ')
-    console.log.apply(null, arguments)
-  }
-}
+const { log } = require('../log/log')
 
 const tests = loadTests(join(__dirname, 'test.yaml'))
 log(tests)
