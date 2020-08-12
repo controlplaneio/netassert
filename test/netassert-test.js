@@ -5,6 +5,7 @@ nmap.nmapLocation = '/usr/bin/nmap' // default
 const { join } = require('path')
 
 const { isNegation, replaceNegationOperator, findLocalPortsToTest, stripProtocol } = require('../lib/ports')
+const { buildNmapOptions, SCAN_TIMEOUT_MILLIS } = require('../lib/ports')
 const { loadTests } = require('../lib/io')
 
 const debug = (process.env.DEBUG === '0' ? false : (!!process.env.DEBUG ? true : !!process.env.REMOTE_DEBUG))
@@ -129,13 +130,13 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   }
 
   // Remove the protocols preserving the negation operator
+  // [ "-TCP:80", "TCP:443" ] -> [ "-80", "443" ]
   let expectedPorts = portsToTest.map(stripProtocol)
 
   // Extract just the port numbers - we'll loop over the results and compre with expectedPorts to check whether they
   // are open or closed
-  portsToTest = expectedPorts.map(port => {
-    return replaceNegationOperator(port[port.length - 1])
-  })
+  // [ "-80", "443" ] -> [ "80", "443" ]
+  portsToTest = expectedPorts.map(replaceNegationOperator)
 
   log('ports to test', portsToTest, portsToTest.length)
   log('expected ports', expectedPorts, expectedPorts.length)
@@ -144,24 +145,12 @@ const assertPortsOpen = (t, hosts, portsToTest, protocol = 'tcp') => {
   log('expected', expectedTests)
   t.plan(expectedTests)
 
-  let nmapQueryString = `-Pn -p ${portsToTest.map((x) => `${protocol.toUpperCase()[0]}:${x}`).join(',')}`
+  const nmapOptions = buildNmapOptions(portsToTest, protocol)
 
-  if (protocol == 'udp') {
-    nmapQueryString = `-sU -sV ${nmapQueryString}`
-  }
+  log(`query string: ${nmapOptions}, for ${protocol}`)
 
-  const jitter = (3 * Math.random()).toFixed(3)
-  const scanTimeout = 30000
-  // -T1 with 10s initial-rtt-timeout and jitter
-  nmapQueryString = `${nmapQueryString} --initial-rtt-timeout 10s --max-retries 100 --max-rate 1`
-  nmapQueryString = `${nmapQueryString} --scan-delay ${jitter} --host-timeout ${scanTimeout / 1000}s`
-
-  let host = hosts[0]
-
-  log('query string: ', nmapQueryString, `for ${protocol}`)
-
-  let quickscan = new nmap.NmapScan(host, `${nmapQueryString}`)
-  quickscan.scanTimeout = scanTimeout
+  let quickscan = new nmap.NmapScan(host, nmapOptions)
+  quickscan.scanTimeout = SCAN_TIMEOUT_MILLIS
   quickscan.on('complete', function (scanResults) {
 
     log(`results for ${protocol}`)
