@@ -15,7 +15,7 @@ host:
       - -UDP:555
       - -UDP:1234
 
-  binarysludge.com:
+  jenkins.ctlplane.io:
     8.8.8.8: UDP:53
     8.8.4.4: UDP:53
     google.com: 443
