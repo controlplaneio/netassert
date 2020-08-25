@@ -236,7 +236,7 @@ configure_parallel() {
   parallel --no-notice --record-env
   export -f _iterate_k8s_worker _iterate_host_worker jqc success \
     info debug verbose error warning ssh_to_node log_message_prefix \
-    is_gke to_yaml wait_safe get_host get_host_filename
+    is_gke to_yaml wait_safe get_host get_host_filename is_empty
 
   export CONFIG TEMP_DIR THIS_SCRIPT DIR NETASSERT_IMAGE_NAME \
     DEBUG IS_OFFLINE CONTAINER_BASE_NAME SSH_DEFAULT_OPTIONS \
@@ -394,6 +394,9 @@ ssh_to_node() {
     CONNECTION='minikube ssh -- '
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
+    if is_empty "${HOST-}"; then
+      error "Host not found for ${NAMESPACE}:${TARGET}: 'gcloud compute instances list' was empty"
+    fi
     CONNECTION="gcloud compute ssh ${HOST} -- -t ${SSH_USER_OPTIONS} ${SSH_DEFAULT_OPTIONS} "
   else
     if [[ -n "${SSH_USER}" ]]; then
@@ -402,7 +405,13 @@ ssh_to_node() {
     CONNECTION="ssh -tt ${SSH_DEFAULT_OPTIONS} ${SSH_USER_OPTIONS} ${HOST} -- "
   fi
 
-  info "Connecting to $(get_host "${HOST}")..."
+  local TARGET_HOST=
+  TARGET_HOST=$(get_host "${HOST}")
+  if is_empty "${TARGET_HOST-}"; then
+    error "Target host for ${HOST} not found"
+  fi
+
+  info "Connecting to ${TARGET_HOST}..."
 
   local PULL_COMMAND=""
   if [[ "${IS_OFFLINE:-}" != 1 ]]; then
