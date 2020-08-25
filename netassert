@@ -35,6 +35,9 @@ set -o noclobber
 DEBUG=0
 VERBOSE=0
 
+# ADd line number to debug
+export PS4='\nsource-file:${BASH_SOURCE} line#:${LINENO} '
+
 # resolved directory and self
 declare -r DIR=$(cd "$(dirname "$0")" && pwd)
 declare -r THIS_SCRIPT="${DIR}/$(basename "$0")"
@@ -290,7 +293,7 @@ _iterate_host_worker() {
   if [[ "${IS_OFFLINE:-}" != 1 ]]; then
     for HOST in ${HOSTS}; do
       if [[ "${HOST}" == 'localhost' ]]; then
-        (info "$(get_host "$(hostname)"): pulling image locally" && docker pull "${NETASSERT_IMAGE_NAME}") &
+        (info "$(get_host "$(cat /etc/hostname)"): pulling image locally" && docker pull "${NETASSERT_IMAGE_NAME}") &
         PIDS+="$! "
 
       else
@@ -388,7 +391,7 @@ ssh_to_node() {
   fi
 
   if [[ "${CONTEXT}" == 'minikube' ]]; then
-    CONNECTION='minikube ssh -- -t'
+    CONNECTION='minikube ssh -- '
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
     CONNECTION="gcloud compute ssh ${HOST} -- -t ${SSH_USER_OPTIONS} ${SSH_DEFAULT_OPTIONS} "
