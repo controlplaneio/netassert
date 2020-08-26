@@ -194,15 +194,6 @@ test: ## build, test, and push container, then run local tests
 		--ssh-options "-o StrictHostKeyChecking=no" \
 		test/test-all.yaml
 
-	# test in docker against remote hosts
-	bash -c "make run-in-docker \
-		CONTAINER_NAME=$(CONTAINER_NAME_TESTING) \
-		ARGS='netassert \
-			--image $(CONTAINER_NAME_TESTING) \
-			--ssh-user $${SSH_USER:-root} \
-			--ssh-options \"-o StrictHostKeyChecking=no\" \
-			test/test-all.yaml'"
-
 .PHONY: test-local
 test-local: ## test from the local machine
 	@echo "+ $@"
