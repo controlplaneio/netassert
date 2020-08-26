@@ -391,7 +391,7 @@ ssh_to_node() {
   fi
 
   if [[ "${CONTEXT}" == 'minikube' ]]; then
-    CONNECTION='minikube ssh -- '
+    CONNECTION='minikube ssh '
   elif is_gke; then
     HOST=$(gcloud compute instances list | awk "/${HOST}/{print \$1\" --zone=\"\$2}")
     if is_empty "${HOST-}"; then
