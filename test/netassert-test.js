@@ -1,5 +1,4 @@
 const test = require('ava')
-
 const nmap = require('node-nmap')
 nmap.nmapLocation = '/usr/bin/nmap' // default
 const { join } = require('path')
@@ -7,35 +6,34 @@ const { join } = require('path')
 const { isNegation, replaceNegationOperator, findLocalPortsToTest, stripProtocol } = require('../lib/ports')
 const { scan } = require('../lib/scanner')
 const { loadTests } = require('../lib/io')
-const { log } = require('../log/log')
+const { log } = require('../lib/log')
 
-const tests = loadTests(join(__dirname, 'test.yaml'))
-log(tests)
+// we really shouldnt need to do this the warning is only triggered when you add >10 event handlers for the same event.
+// TODO(rem): we should diagnose the problem in node-nmap
+// TODO(rem): we are on a very old version of node-nmap this probem may have been fixed in a more recent version
+process.setMaxListeners(200)
 
-const runTests = (tests) => {
+const tests = loadTests(join(__dirname, 'test.yaml')) // should be user suppliable
+
+const runTestsFromManifest = (tests) => {
+  log('Starting reading test manifest')
+  // (rem) This script is only ever run with known yaml input which will be massaged to only include
+  // a manifest that requires it to nmap ports to other hosts.  This fn is legacy
   Object.keys(tests).forEach((testType) => {
     switch (testType) {
-      case 'k8s':
-      case 'kubernetes':
-        log('k8s tests')
-        log('NOT IMPLEMENTED')
-        break
-
       case 'host':
-      case 'instance':
-        runHostTests(tests[testType])
+      case 'instance': // (rem) why instance?! this doesn't seem to be ever a type supplied
+        runTests(tests[testType])
         break
-      default:
+      default: // should be unreachable
         console.error(`Unknown test type ${testType}`)
         process.exit(1)
     }
-
-    log()
   })
 }
 
-const runHostTests = (tests) => {
-  log('host tests', tests)
+const runTests = (tests) => {
+  log('Running tests', tests)
 
   Object.keys(tests).forEach((testType) => {
     switch (testType) {
@@ -44,6 +42,7 @@ const runHostTests = (tests) => {
         break
 
       default:
+        // (rem): this is important refer to the format that is produced by the driver bash script
         if (testType.substr(0, 1) === '_') {
           runHostLocalTests(tests[testType])
         } else {
@@ -51,13 +50,11 @@ const runHostTests = (tests) => {
           process.exit(1)
         }
     }
-
-    log()
   })
 }
 
 const runHostLocalTests = (tests) => {
-  log('host local tests', tests)
+  log('local tests', tests)
 
   Object.keys(tests).forEach((host) => {
     var portsToTest = findLocalPortsToTest(tests[host])
@@ -70,10 +67,7 @@ const runHostLocalTests = (tests) => {
 
     const udpPortsToTest = portsToTest.filter(udpOnly)
     udpPortsToTest.forEach(port => test.cb(openUdp, host, [port]))
-
-    log()
   })
-  log()
 }
 
 // ---
@@ -182,4 +176,4 @@ function udpOnly (ports) {
   return (replaceNegationOperator(ports).substr(0, 4) === 'UDP:')
 }
 
-runTests(tests)
+runTestsFromManifest(tests)
