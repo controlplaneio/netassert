@@ -57,8 +57,6 @@ host:
       - 443
 #    jd.com:
 #      - 443
-    google.co.uk:
-      - 443
     linkedin.com:
       - 443
     weibo.com:
