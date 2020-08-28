@@ -54,6 +54,22 @@ export NAME DOCKER_HUB_URL BUILD_DATE GIT_MESSAGE GIT_SHA GIT_TAG \
 
 TEST_FILE := "test/test-localhost-remote.yaml"
 
+define start_task
+@echo "--------------------------------------------------------------------------------"
+@echo " MAKE START:  $@"
+@echo "--------------------------------------------------------------------------------"
+endef
+
+define end_task
+@echo "--------------------------------------------------------------------------------"
+@echo " MAKE END:  $@"
+@echo "--------------------------------------------------------------------------------"
+endef
+
+define task_info
+@echo " --> $1"
+endef
+
 .PHONY: all test
 .SILENT:
 
@@ -61,7 +77,7 @@ all: help
 
 .PHONY: cluster
 cluster: ## creates a test GKE cluster
-	@echo "+ $@"
+	$(call start_task,"$@")
 	gcloud container clusters create \
 		--zone europe-west2-a \
 		--machine-type n1-highcpu-16 \
@@ -71,28 +87,41 @@ cluster: ## creates a test GKE cluster
 		--preemptible \
 		--enable-network-policy \
 		netassert-test
+	$(call end_task,"$@")
 
 .PHONY: cluster-kill
 cluster-kill: ## deletes a test GKE cluster
-	@echo "+ $@"
+	$(call start_task,"$@")
 	yes | gcloud container clusters delete \
 		--zone europe-west2-a \
 		netassert-test
+	$(call end_task,"$@")
+
+.PHONY:
+test-unit: ## Runs unit tests for javascript
+	$(call start_task,"$@")
+	@npm run test:unit -s
+	$(call end_task,"$@")
 
 .PHONY: build
 build: ## builds a docker image
-	@echo "+ $@"
+	$(call start_task,"$@")
+	$(call task_info, "BUILDING TAG ${CONTAINER_NAME}")
 	docker build --tag "${CONTAINER_NAME}" .
+	$(call end_task,"$@")
 
 .PHONY: run
 run: ## runs the last build docker image
-	@echo "+ $@"
+	$(call start_task,"$@")
 	docker run -i "${CONTAINER_NAME}" ${ARGS}
+	$(call end_task,"$@")
 
 .PHONY: push
 push: ## pushes a docker image
-	@echo "+ $@"
+	$(call start_task,"$@")
+	$(call task_info, "PUSHING TAG ${CONTAINER_NAME}")
 	docker push "${CONTAINER_NAME}"
+	$(call end_task,"$@")
 
 .PHONY: get-container-tag
 get-container-tag: ## get the container's tag
@@ -100,7 +129,7 @@ get-container-tag: ## get the container's tag
 
 .PHONY: run-in-docker
 run-in-docker: ## runs the last build docker image inside docker
-	@echo "+ $@"; \
+	$(call start_task,"$@")
 		set -x ; \
 		LINK=$(shell readlink -f ~/.ssh/config); \
 		docker run -i \
@@ -120,23 +149,19 @@ run-in-docker: ## runs the last build docker image inside docker
 			-e DEBUG=0 \
 			\
 			"${CONTAINER_NAME}" ${ARGS}
+	$(call end_task,"$@")
 
 .PHONY: jenkins
 jenkins: ## run acceptance tests
-	@echo "+ $@"
+	$(call start_task,"$@")
 	make build
 	make run-in-docker \
 		ARGS='netassert --offline --image ${CONTAINER_NAME} ${TEST_FILE}'
-
-.PHONY: rollcage-test
-rollcage-test: ## build, test, and push container, then run local tests
-	@echo "+ $@"
-	make rollcage && ./netassert test/test-all.yaml
+	$(call end_task,"$@")
 
 .PHONY: test-local-docker
 test-local-docker: ## test against local container
-	@echo "+ $@"
-
+	$(call start_task,"$@")
 	# test against local container
 	make build CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
 
@@ -176,11 +201,11 @@ test-local-docker: ## test against local container
 	"
 
 	docker rm --force netassert-http-echo 2>/dev/null || true;
+	$(call end_task,"$@")
 
 .PHONY: test
-test: ## build, test, and push container, then run local tests
-	# Run unit tests
-	npm run test:unit
+test: test-unit ## build, test, and push container, then run local tests
+	$(call start_task,"$@")
 
 	# test against local container
 	make test-local-docker
@@ -193,72 +218,25 @@ test: ## build, test, and push container, then run local tests
 		--ssh-user $${SSH_USER:-root} \
 		--ssh-options "-o StrictHostKeyChecking=no" \
 		test/test-all.yaml
+	$(call end_task,"$@")
 
 .PHONY: test-local
 test-local: ## test from the local machine
-	@echo "+ $@"
+	$(call start_task,"$@")
 	./netassert \
 		--image ${CONTAINER_NAME_TESTING} \
 		test/test-all.yaml
+	$(call end_task,"$@")
 
 .PHONY: test-deploy
 test-deploy: ## deploy test services
-	@echo "+ $@"
+	$(call start_task,"$@")
 	set -x;
 	kubectl apply \
 						-f resource/deployment/demo.yaml \
 						-f resource/net-pol/web-deny-all.yaml \
 						-f resource/net-pol/test-services-allow.yaml;
-
-
-.PHONY: rollcage
-rollcage: ## build, test, and push the container
-	@echo "+ $@"
-	rollcage build run push \
-		--interactive false \
-	  --tag controlplane/netassert:none \
-	  --pull=false "npm test"  \
-		-- \
-	  --net=host \
-		--env DEBUG="" \
-		--env "TEST_YAML=$$(cat test/test.yaml | base64 -w0)"
-
-.PHONY: rollcage-docker
-rollcage-docker: ## experimental, does not currently work with gcloud
-	@echo "+ $@"
-	rollcage build run push \
-		--interactive false \
-		--tag controlplane/netassert:none \
-		--pull=false "npm test" \
-		-- \
-	  --net=host \
-		--env DEBUG=1 \
-		--env "TEST_YAML=$$(base64 -w0 test/test.yaml)" \
-		--volume /var/run/docker.sock:/var/run/docker.sock:ro  \
-		--volume $${HOME}/.ssh:/root/.ssh \
-		--volume $${HOME}/.andy_sync/conf/.ssh/config:/opt/ssh_config \
-		--volume $${HOME}/.kube:/root/.kube:ro
-
-# ---
-
-.PHONY: add-make-rule
-add-make-rule: ## add a new rule to this Makefile
-	@echo "+ $@"
-	set -x ; \
-	if [[ "$${ACTION:-}" != "" ]]; then \
-		sed -E "/^.PHONY: new-make-rule$$/i \
-.PHONY: $${ACTION}\n\
-$${ACTION}: \#\# help\n\
-\t\@echo \"+ \$$\@\"\n\
-\techo \"Not implemented\"\n\
-" \
-		-i Makefile; \
-		LINE=$$(grep -E '^.PHONY: rollcage' Makefile  --line-number | head -n 1 | cut  -d: -f1); \
-		vim Makefile \
-			"+call cursor($${LINE}, 14)"; \
-	else \
-		echo "ACTION required"; \
-	fi
+	$(call end_task,"$@")
 
 .PHONY: help
 help: ## parse jobs and descriptions from this Makefile
