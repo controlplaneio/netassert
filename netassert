@@ -36,7 +36,7 @@ DEBUG=0
 VERBOSE=0
 
 # ADd line number to debug
-export PS4='\nsource-file:${BASH_SOURCE} line#:${LINENO} '
+#export PS4='\nsource-file:${BASH_SOURCE} line#:${LINENO} '
 
 # resolved directory and self
 declare -r DIR=$(cd "$(dirname "$0")" && pwd)
@@ -446,8 +446,10 @@ present_results() {
   local RESULT_COUNT=0
   local OUTPUT_PASS=""
   local OUTPUT_FAIL=""
-  local OUTPUT_FAIL_HR=$(printf "%s\n" "${COLOUR_RED}$(hr)${COLOUR_RESET}")
-  local OUTPUT_PASS_HR=$(printf "%s\n" "${COLOUR_GREEN}$(hr)${COLOUR_RESET}")
+  local OUTPUT_FAIL_HR
+  local OUTPUT_PASS_HR
+  OUTPUT_FAIL_HR=$(printf "%s\n" "${COLOUR_RED}$(hr)${COLOUR_RESET}")
+  OUTPUT_PASS_HR=$(printf "%s\n" "${COLOUR_GREEN}$(hr)${COLOUR_RESET}")
 
   # todo(ajm) write aliases into test results at runtime
   while read ALIAS; do
@@ -466,7 +468,7 @@ present_results() {
     )
 
     if ! echo "${TAP_RESULT}" \
-      | grep -E '^# tests [0-9]+' -A 3 \
+      | grep -E '^# tests [1-9]+' -A 3 \
       | grep --fixed-strings "# fail 0" &>/dev/null; then
 
       TEST_FAILURES=$((TEST_FAILURES + 1))

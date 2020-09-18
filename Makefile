@@ -197,6 +197,7 @@ test-local-docker: ## test against local container
 			--no-pull \
 			--ssh-user $${SSH_USER:-root} \
 			--ssh-options \"-o StrictHostKeyChecking=no\" \
+			$(FLAGS) \
 			\$${TMP_TEST_FILE}; \
 	"
 
@@ -208,15 +209,16 @@ test: test-unit ## build, test, and push container, then run local tests
 	$(call start_task,"$@")
 
 	# test against local container
-	make test-local-docker
+#	make test-local-docker
 
 	# test against remote hosts
 	make test-deploy
-	make push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
-	./netassert \
-		--image $(CONTAINER_NAME_TESTING) \
-		--ssh-user $${SSH_USER:-root} \
+	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
+	set -x; ./netassert \
+		--image "$(CONTAINER_NAME_TESTING)" \
+		--ssh-user "$${SSH_USER:-root}" \
 		--ssh-options "-o StrictHostKeyChecking=no" \
+		$(FLAGS) \
 		test/test-all.yaml
 	$(call end_task,"$@")
 
@@ -225,6 +227,7 @@ test-local: ## test from the local machine
 	$(call start_task,"$@")
 	./netassert \
 		--image ${CONTAINER_NAME_TESTING} \
+		$(FLAGS) \
 		test/test-all.yaml
 	$(call end_task,"$@")
 

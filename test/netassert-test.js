@@ -82,12 +82,12 @@ function openUdp (t, host, portsToTest) {
 
 openTcp.title = (providedTitle, host, expectedPorts) => {
   expectedPorts = getTestName(expectedPorts)
-  return `${providedTitle} ${host} TCP:${expectedPorts.join(',')}`.trim()
+  return `${host} TCP:${expectedPorts.join(',')}`.trim()
 }
 
 openUdp.title = (providedTitle, host, expectedPorts) => {
   expectedPorts = getTestName(expectedPorts)
-  return `${providedTitle} ${host} UDP:${expectedPorts.join(',')}`.trim()
+  return `${host} UDP:${expectedPorts.join(',')}`.trim()
 }
 
 const getTestName = (expectedPorts) => {
