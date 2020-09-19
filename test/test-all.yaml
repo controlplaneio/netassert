@@ -21,8 +21,6 @@ host:
     google.com: 443
     localhost:
       - -999
-
-
 k8s:
   deployment:
     default:test-frontend:

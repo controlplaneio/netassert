@@ -83,10 +83,16 @@ cluster: ## creates a test GKE cluster
 		--machine-type n1-highcpu-16 \
 		--enable-autorepair \
 		--no-enable-legacy-authorization \
+		--no-enable-ip-alias \
+		--no-enable-autoupgrade \
 		--num-nodes 1 \
 		--preemptible \
 		--enable-network-policy \
-		netassert-test
+		--enable-binauthz \
+		--enable-shielded-nodes \
+		--shielded-integrity-monitoring \
+		--shielded-secure-boot \
+		netassert-test-2
 	$(call end_task,"$@")
 
 .PHONY: cluster-kill
@@ -235,13 +241,21 @@ test-local: ## test from the local machine
 
 .PHONY: test-deploy-k8s
 test-deploy-k8s: ## deploy test services
-	$(call start_task,"$@")
-	set -x;
-	kubectl apply \
-						-f resource/deployment/demo.yaml \
-						-f resource/net-pol/web-deny-all.yaml \
-						-f resource/net-pol/test-services-allow.yaml;
-	$(call end_task,"$@")
+		$(call start_task,"$@")
+		set -x;
+		if kubectl delete \
+				-f resource/deployment/demo.yaml \
+				-f resource/net-pol/web-deny-all.yaml \
+				-f resource/net-pol/test-services-allow.yaml; then \
+				\
+				sleep 3; \
+		fi;
+
+		kubectl apply \
+				-f resource/deployment/demo.yaml \
+				-f resource/net-pol/web-deny-all.yaml \
+				-f resource/net-pol/test-services-allow.yaml;
+		$(call end_task,"$@")
 
 .PHONY: help
 help: ## parse jobs and descriptions from this Makefile

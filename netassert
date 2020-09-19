@@ -411,7 +411,7 @@ ssh_to_node() {
     error "Target host for ${HOST} not found"
   fi
 
-  info "Connecting to ${TARGET_HOST}..."
+  info "Connecting: ${TARGET_HOST}"
 
   local PULL_COMMAND=""
   if [[ "${IS_OFFLINE:-}" != 1 ]]; then
