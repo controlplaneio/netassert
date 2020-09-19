@@ -67,7 +67,7 @@ fi
 
 chown netassert -R /home/netassert
 
-# TODO(AJM) run without root
+# TODO(AJM) run without root
 # sudo setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip /usr/bin/nmap
 # exec gosu netassert "${@}"
 

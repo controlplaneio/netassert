@@ -142,7 +142,7 @@ is_gke() {
 iterate_k8s() {
   local HOSTS=$(jqc "${CONFIG}" '.k8s? .deployment? | keys? | .[]?')
   if [[ "${HOSTS:-}" == "" ]]; then
-    verbose "No K8S nodes to test"
+    verbose "Iterate k8s: no K8S nodes to test"
     return 0
   fi
 
@@ -246,7 +246,7 @@ configure_parallel() {
 iterate_host() {
   local HOSTS=$(jqc "${CONFIG}" '.host? | keys? | .[]?')
   if [[ "${HOSTS:-}" == "" ]]; then
-    info "No instances to test"
+    info "Iterate host: no instances to test"
     return 0
   fi
 
@@ -457,12 +457,12 @@ present_results() {
   done < <(jqc "${CONFIG}" -r \
     ".alias? | to_entries? | map(\"\(.key)=\(.value|tostring) (\(.key))\") | .[]? ")
 
-  while read RESULT; do
+  while read -r RESULT; do
     local TEST_NAME="${RESULT/${TEMP_DIR}\//}"
     TEST_NAME=$(base64 -d <<<"${TEST_NAME}")
     RESULT_COUNT=$((RESULT_COUNT + 1))
     local TAP_RESULT=$(
-      if ! cat "${RESULT}" | grep -E '^TAP version [0-9]+' -A 9999; then
+      if ! grep -E '^TAP version [0-9]+' -A 9999 "${RESULT}"; then
         cat "${RESULT}"
       fi
     )
@@ -485,7 +485,7 @@ present_results() {
         echo "${OUTPUT_PASS_HR}"
         echo)
     fi
-  done < <(find ${TEMP_DIR}/ -type f)
+  done < <(find "${TEMP_DIR}"/ -type f)
 
   local OUTPUT_RESULT=$(
     if [[ "${TEST_FAILURES}" -gt 0 ]]; then
@@ -610,6 +610,10 @@ parse_arguments() {
         ;;
       --debug)
         DEBUG=1
+        set -xe
+        ;;
+      --debug-this)
+        DEBUG=0
         set -xe
         ;;
       --)

@@ -13,7 +13,7 @@
     "lint": "standard",
     "pretest:unit": "npm run lint",
     "test:unit": "ava lib/**/*-test.js",
-    "test": "bash -xc 'APP=\"ava --tap test/netassert-test.js\"; if false; then echo \"WARNING: UDP requires root (currently $(whoami)). Requesting sudo\"; sudo ${APP}; else ${APP}; fi'"
+    "test": "bash -xc 'APP=\"ava --timeout 120s --concurrency 2 --tap test/netassert-test.js\"; if false; then echo \"WARNING: UDP requires root (currently $(whoami)). Requesting sudo\"; sudo ${APP}; else ${APP}; fi'"
   },
   "repository": {
     "type": "git",

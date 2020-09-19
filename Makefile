@@ -156,7 +156,7 @@ jenkins: ## run acceptance tests
 	$(call start_task,"$@")
 	make build
 	make run-in-docker \
-		ARGS='netassert --offline --image ${CONTAINER_NAME} ${TEST_FILE}'
+		ARGS='netassert --verbose --offline --image ${CONTAINER_NAME} ${TEST_FILE}'
 	$(call end_task,"$@")
 
 .PHONY: test-local-docker
@@ -212,9 +212,10 @@ test: test-unit ## build, test, and push container, then run local tests
 #	make test-local-docker
 
 	# test against remote hosts
-	make test-deploy
+	make test-deploy-k8s
 	make build push CONTAINER_NAME="$(CONTAINER_NAME_TESTING)"
 	set -x; ./netassert \
+		--verbose \
 		--image "$(CONTAINER_NAME_TESTING)" \
 		--ssh-user "$${SSH_USER:-root}" \
 		--ssh-options "-o StrictHostKeyChecking=no" \
@@ -226,13 +227,14 @@ test: test-unit ## build, test, and push container, then run local tests
 test-local: ## test from the local machine
 	$(call start_task,"$@")
 	./netassert \
+		--verbose \
 		--image ${CONTAINER_NAME_TESTING} \
 		$(FLAGS) \
 		test/test-all.yaml
 	$(call end_task,"$@")
 
-.PHONY: test-deploy
-test-deploy: ## deploy test services
+.PHONY: test-deploy-k8s
+test-deploy-k8s: ## deploy test services
 	$(call start_task,"$@")
 	set -x;
 	kubectl apply \
