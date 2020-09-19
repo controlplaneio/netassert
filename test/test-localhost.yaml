@@ -1,8 +1,8 @@
 host:
   localhost:
     localhost:
-      - TCP:22
-      - 39111
+      - -TCP:22
+#      - 39111
 #      - -999
 #      - -UDP:1234
 #      - -UDP:555
