@@ -100,17 +100,19 @@ pipeline {
         ansiColor('xterm') {
           sh """#!/bin/bash
             set -euxo pipefail
-            
+
             EXIT_CODE=0
 
-            make cluster
+            if ! make cluster; then
+              make cluster-kill cluster
+            fi
 
-            if ! make jenkins TEST_FILE=${TEST_FILE}"; then
+            if ! make test; then
               EXIT_CODE=1
             fi
-            
+
             make kill-cluster
-            
+
             exit \${EXIT_CODE}
           """
         }
