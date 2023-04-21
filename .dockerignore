@@ -1,0 +1,8 @@
+Dockerfile*
+Jenkinsfile*
+**/.terraform
+.git/
+
+.idea/
+*.iml
+.gcloudignore

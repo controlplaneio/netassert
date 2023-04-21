@@ -8,5 +8,19 @@ insert_final_newline = true
 max_line_length = 120
 trim_trailing_whitespace = true
 
-[Makefile]
+[*.py]
+indent_size = 4
+
+[{Makefile,makefile,**.mk}]
 indent_style = tab
+
+[*.sh]
+indent_style = space
+indent_size = 2
+
+shell_variant      = bash # like -ln=posix
+binary_next_line   = true  # like -bn
+switch_case_indent = true  # like -ci
+space_redirects    = true  # like -sr
+keep_padding       = false  # like -kp
+

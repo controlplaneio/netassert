@@ -1,0 +1,43 @@
+name: Lint and Build
+on:
+  push:
+  ## do not lint and build when tagged, we already do that in push to master
+    tags-ignore:
+      - '*'
+
+    branches:
+    - '*'
+  pull_request:
+    branches: ['main', 'master']
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run golangci-lint
+        uses: reviewdog/action-golangci-lint@v2
+        with:
+          go_version: "1.20"
+  build:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.20.x'
+
+      - name: Install dependencies
+        run: go get ./...
+
+      - name: Test
+        run: go test -v ./... --race
+
+      - name: Build
+        run: go build -v ./...

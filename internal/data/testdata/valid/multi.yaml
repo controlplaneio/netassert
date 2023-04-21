@@ -1,0 +1,29 @@
+- name: testname
+  type: k8s
+  targetPort: 80
+  exitCode: 0
+  src:
+    k8sResource:
+      kind: deployment
+      name: deployment1
+      namespace: ns1
+  dst:
+    host:
+      name: "1.1.1.1"
+- name: testname2
+  type: k8s
+  protocol: udp
+  timeoutSeconds: 50
+  attempts: 20
+  targetPort: 8080
+  exitCode: 1
+  src:
+    k8sResource:
+      kind: statefulset
+      name: statefulset1
+      namespace: ns1
+  dst:
+    k8sResource:
+      kind: pod
+      name: mypod
+      namespace: ns2

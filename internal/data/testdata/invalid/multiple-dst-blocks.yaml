@@ -1,0 +1,19 @@
+- name: testname2
+  type: k8s
+  protocol: udp
+  timeoutSeconds: 50
+  attempts: 15
+  targetPort: 8080
+  exitCode: 1
+  src:
+    k8sResource:
+      kind: statefulset
+      name: statefulset1
+      namespace: ns1
+  dst:
+    k8sResource:
+      kind: pod
+      name: mypod
+      namespace: ns2
+    host:
+      name: "1.1.1.1"

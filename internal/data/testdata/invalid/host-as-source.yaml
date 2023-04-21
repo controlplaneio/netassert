@@ -1,0 +1,12 @@
+- name: testname
+  type: k8s
+  targetPort: 80
+  exitCode: 0
+  src:
+    host:
+      name: "1.1.1.1"
+  dst:
+    k8sResource:
+      kind: deployment
+      name: deployment1
+      namespace: ns1

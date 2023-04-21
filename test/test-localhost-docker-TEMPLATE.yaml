@@ -1,9 +1,0 @@
-alias:
-  ${DOCKER_HOST_IP}: echo-server
-  localhost: my nice local host
-
-host:
-  localhost:
-    ${DOCKER_HOST_IP}:
-    - TCP:59942
-    - -TCP:80

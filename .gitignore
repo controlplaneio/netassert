@@ -1,3 +1,9 @@
+# Secrets #
+###########
+*.pem
+*.key
+*_rsa
+
 # Compiled source #
 ###################
 *.com
@@ -6,6 +12,7 @@
 *.exe
 *.o
 *.so
+*.pyc
 
 # Packages #
 ############
@@ -23,8 +30,8 @@
 # Logs and databases #
 ######################
 *.log
-*.sql
 *.sqlite
+pip-log.txt
 
 # OS generated files #
 ######################
@@ -33,34 +40,114 @@ ehthumbs.db
 Icon?
 Thumbs.db
 
-# SSH                 #
-#######################
-.ssh/*.pem
-.ssh/*.pub
-
 # IDE generated files #
 #######################
 .idea/
+*.iml
+atlassian-ide-plugin.xml
 
-conf/.ssh/
-conf/.vim/bundle/
-google-cloud-sdk
-conf/.tmux/plugins/*
-!conf/.tmux/plugins/tpm/
-conf/.tmux/resurrect/
+# Test Files #
+##############
+test/log
+.coverage
+.tox
+nosetests.xml
 
-conf/.tunnelbear/pass
-conf/.ivpn/pass
+# Package Managed Files #
+#########################
+bower_components/
+vendor/
+composer.lock
+node_modules/
+.npm/
+venv/
+.venv/
+.venv2/
+.venv3/
 
-conf/.config/fish/fish_history
-conf/.config/fish/fishd.ac*
+# temporary files #
+###################
+*.*swp
+nohup.out
+*.tmp
 
-conf/.docker/config.json
+# Virtual machines #
+####################
+.vagrant/
 
-includes/_SECRET
+# Pythonics #
+#############
+*.py[cod]
 
-!bin/
-.passwd-s3fs
-*.orig
+# Packages
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64
 
-!lib/
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+# Complexity
+output/*.html
+output/*/index.html
+
+# Sphinx
+docs/_build
+.scratch.md
+
+conf/.config/keybase/
+
+# Pipenv
+
+Pipfile*
+# backup files
+*.backup
+*.notworking
+
+internal/types-not-used/
+demo.yaml
+.idea
+cmd/netassert/cli/netassert
+cmd/netassert/cli/results.tap
+internal/logger/*.old
+cmd/netassert/cli/cli
+
+# Terraform
+.terraform
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.lock.hcl*
+
+# Kubeconfig
+*.kubeconfig
+
+# CLI
+/cmd/netassert/cli/*.sh
+abc
+netassert-*-*-kubeconfig
+bin
+results.tap

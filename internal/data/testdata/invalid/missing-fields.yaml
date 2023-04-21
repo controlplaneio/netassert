@@ -1,0 +1,7 @@
+- attempts: -2
+  timeoutSeconds: -2
+  targetPort: 100000
+  exitCode: 0
+  src:
+    wrong: 44
+  dst:

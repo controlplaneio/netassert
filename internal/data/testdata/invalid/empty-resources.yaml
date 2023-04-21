@@ -1,0 +1,9 @@
+- name: testname
+  type: k8s
+  targetPort: 100000
+  exitCode: 0
+  src:
+    k8sResource:
+      dumb: 44
+  dst:
+    host:
