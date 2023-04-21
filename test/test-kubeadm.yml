@@ -1,5 +1,0 @@
-k8s:
-  deployment:
-    test-frontend:
-      10.0.1.1: -443, -6443  # ensure no access to kubelet from frontend pods
-

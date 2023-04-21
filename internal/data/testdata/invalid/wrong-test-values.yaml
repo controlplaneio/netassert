@@ -1,0 +1,15 @@
+- name: testname
+  type: k8s
+  protocol: nonexisting
+  attempts: -2
+  timeoutSeconds: -2
+  targetPort: 100000
+  exitCode: 0
+  src:
+    k8sResource:
+      kind: newkind
+      name: deployment1
+      namespace: ns1
+  dst:
+    host:
+      name: ""

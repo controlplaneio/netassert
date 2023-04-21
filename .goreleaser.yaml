@@ -1,0 +1,35 @@
+builds:
+- id: netassert
+  env:
+  - CGO_ENABLED=0
+  ldflags:
+  - -s
+  - -w
+  - -X main.version={{.Version}}
+  - -X main.gitHash={{.FullCommit}}
+  - -X main.buildDate={{.Date}}
+  goos:
+  - linux
+  - windows
+  - darwin
+  goarch:
+  - amd64
+  main: ./cmd/netassert/cli/
+  binary: netassert
+archives:
+- id: netassert
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  format: tar.gz
+  files:
+  - LICENSE
+  wrap_in_directory: false
+checksum:
+  algorithm: sha256
+  name_template: 'checksums-sha256.txt'
+changelog:
+  sort: asc
+sboms:
+  - id: archive
+    artifacts: archive
+  - id: source
+    artifacts: source
