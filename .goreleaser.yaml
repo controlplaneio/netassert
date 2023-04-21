@@ -5,21 +5,29 @@ builds:
   ldflags:
   - -s
   - -w
-  - -X main.version={{.Version}}
+  - -X main.version={{.Tag}}
   - -X main.gitHash={{.FullCommit}}
   - -X main.buildDate={{.Date}}
   goos:
   - linux
-  - windows
   - darwin
+  - windows
   goarch:
   - amd64
+  - arm
+  - arm64
+  goarm:
+  - 6
+  - 7
   main: ./cmd/netassert/cli/
   binary: netassert
 archives:
 - id: netassert
-  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
   format: tar.gz
+  format_overrides:
+  - goos: windows
+    format: zip
   files:
   - LICENSE
   wrap_in_directory: false
