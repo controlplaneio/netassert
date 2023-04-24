@@ -338,6 +338,6 @@ The list of required permissions can be found in the `netassert` ClusterRole `ku
 
 - Please check this [README.md](./e2e/README.md)
 
-[testing_workflow_badge]: https://github.com/controlplaneio/netassertv2-engine/workflows/Lint%20and%20Build/badge.svg
+[testing_workflow_badge]: https://github.com/controlplaneio/netassert/workflows/Lint%20and%20Build/badge.svg
 
-[release_workflow_badge]: https://github.com/controlplaneio/netassertv2-engine/workflows/goreleaser/badge.svg
+[release_workflow_badge]: https://github.com/controlplaneio/netassert/workflows/goreleaser/badge.svg

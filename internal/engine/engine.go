@@ -1,4 +1,4 @@
-//go:generate mockgen -destination=engine_mocks_test.go -package=engine github.com/controlplaneio/netassertv2-engine/internal/engine NetAssertTestRunner
+//go:generate mockgen -destination=engine_mocks_test.go -package=engine github.com/controlplaneio/netassert/internal/engine NetAssertTestRunner
 
 package engine
 
