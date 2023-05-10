@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/controlplaneio/netassert/v2/internal/kubeops"
 	"github.com/controlplaneio/netassert/v2/internal/logger"
@@ -110,6 +111,9 @@ func (g *EKSCluster) installCalico(t *testing.T) {
 	if _, err := terraform.InitAndApplyE(t, newTFOptions); err != nil {
 		t.Fatalf("failed to run terraform init and apply: %s", err)
 	}
+
+	svc.Log.Info("Sleeping 20 minutes so connectivity from the cluster to the Internet is restored")
+	time.Sleep(20 * time.Minute)
 }
 
 func (g *EKSCluster) Destroy(t *testing.T) {
@@ -120,4 +124,11 @@ func (g *EKSCluster) Destroy(t *testing.T) {
 
 func (g *EKSCluster) KubeConfigGet() string {
 	return g.kubeConfigPath
+}
+
+func (g *EKSCluster) SkipNetPolTests() bool {
+	if g.networkMode == Calico {
+		return false
+	}
+	return true
 }

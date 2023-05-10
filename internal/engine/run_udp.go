@@ -114,7 +114,7 @@ func (e *Engine) RunUDPTest(
 		string(te.Protocol),
 		te.Attempts,
 		networkInterface,
-		te.TimeoutSeconds+5, // add 5 seconds for the Container to come online
+		te.TimeoutSeconds,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to build sniffer ephemeral container for test %s: %w", te.Name, err)
@@ -152,7 +152,7 @@ func (e *Engine) RunUDPTest(
 	exitCodeSnifferCtr, err := e.Service.GetExitStatusOfEphemeralContainer(
 		ctx,
 		snifferContainerName,
-		time.Duration(te.TimeoutSeconds)*time.Second,
+		time.Duration(te.TimeoutSeconds+20)*time.Second, // give 20 seconds of extra time for the container to come online
 		dstPod.Name,
 		dstPod.Namespace,
 	)
@@ -174,7 +174,7 @@ func (e *Engine) RunUDPTest(
 	// get the exit status of the scanner container
 	exitCodeScanner, err := e.Service.GetExitStatusOfEphemeralContainer(
 		ctx, scannerContainerName,
-		time.Duration(te.TimeoutSeconds+10)*time.Second,
+		time.Duration(te.TimeoutSeconds+20)*time.Second,
 		srcPod.Name,
 		srcPod.Namespace,
 	)

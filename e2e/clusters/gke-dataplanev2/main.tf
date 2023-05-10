@@ -13,7 +13,7 @@ provider "google" {
 
 resource "google_container_cluster" "e2etest" {
   name               = var.cluster_name
-  initial_node_count = 3
+  initial_node_count = 4
   datapath_provider  = var.use_dataplanev2 ? "ADVANCED_DATAPATH" : null
   ip_allocation_policy {}
   node_config {

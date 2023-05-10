@@ -15,6 +15,8 @@ kind: Pod
 metadata:
   name: pod2
   namespace: pod2
+  labels:
+    name: pod2
 spec:
   containers:
     - name: webserver
@@ -27,6 +29,8 @@ kind: Pod
 metadata:
   name: pod1
   namespace: pod1
+  labels:
+    name: pod1
 spec:
   containers:
     - name: busybox

@@ -14,4 +14,5 @@ type GenericCluster interface {
 	Create(t *testing.T)
 	Destroy(t *testing.T)
 	KubeConfigGet() string
+	SkipNetPolTests() bool
 }
