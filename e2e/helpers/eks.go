@@ -127,8 +127,5 @@ func (g *EKSCluster) KubeConfigGet() string {
 }
 
 func (g *EKSCluster) SkipNetPolTests() bool {
-	if g.networkMode == Calico {
-		return false
-	}
-	return true
+	return g.networkMode != Calico
 }

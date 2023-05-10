@@ -62,5 +62,5 @@ func (g *GKECluster) KubeConfigGet() string {
 }
 
 func (g *GKECluster) SkipNetPolTests() bool {
-	return false
+	return false // network policies are supported by all gke cluster configurations
 }
