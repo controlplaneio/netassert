@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 - [2.0.2](#202)
 - [2.0.1](#201)
 - [2.0.0](#200)
-- [1.0.0](#100)
+- [0.1.0](#010)
 
 ---
 
@@ -28,7 +28,7 @@ All notable changes to this project will be documented in this file.
 - support for Pods, StatefulSets, DaemonSets and Deployments which are directly referred through their names in the test suites
 - artifacts are available for download
 
-## `1.0.0`
+## `0.1.0`
 
 - initial release
 - no artifacts available
