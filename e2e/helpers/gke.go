@@ -60,3 +60,7 @@ func (g *GKECluster) Destroy(t *testing.T) {
 func (g *GKECluster) KubeConfigGet() string {
 	return g.kubeConfigPath
 }
+
+func (g *GKECluster) SkipNetPolTests() bool {
+	return false // network policies are supported by all gke cluster configurations
+}

@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	defaultNetInt  = `eth0` // default network interface
-	defaultSnapLen = 1024   // default size of the packet snap length
+	defaultNetInt                   = `eth0` // default network interface
+	defaultSnapLen                  = 1024   // default size of the packet snap length
+	ephemeralContainersExtraSeconds = 23     // fixed extra time given for the ephemeral containers to come online
+	attemptsMultiplier              = 3      // increase the attempts to ensure that we send three times the packets
 )
 
 // RunUDPTest - runs a UDP test
@@ -114,7 +116,7 @@ func (e *Engine) RunUDPTest(
 		string(te.Protocol),
 		te.Attempts,
 		networkInterface,
-		te.TimeoutSeconds+5, // add 5 seconds for the Container to come online
+		te.TimeoutSeconds,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to build sniffer ephemeral container for test %s: %w", te.Name, err)
@@ -128,7 +130,7 @@ func (e *Engine) RunUDPTest(
 		strconv.Itoa(te.TargetPort),
 		string(te.Protocol),
 		msg,
-		te.Attempts*3, // increase the attempts to ensure that we send three times the packets
+		te.Attempts*attemptsMultiplier,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to build ephemeral scanner container for test %s: %w", te.Name, err)
@@ -152,7 +154,7 @@ func (e *Engine) RunUDPTest(
 	exitCodeSnifferCtr, err := e.Service.GetExitStatusOfEphemeralContainer(
 		ctx,
 		snifferContainerName,
-		time.Duration(te.TimeoutSeconds)*time.Second,
+		time.Duration(te.TimeoutSeconds+ephemeralContainersExtraSeconds)*time.Second,
 		dstPod.Name,
 		dstPod.Namespace,
 	)
@@ -174,7 +176,7 @@ func (e *Engine) RunUDPTest(
 	// get the exit status of the scanner container
 	exitCodeScanner, err := e.Service.GetExitStatusOfEphemeralContainer(
 		ctx, scannerContainerName,
-		time.Duration(te.TimeoutSeconds+10)*time.Second,
+		time.Duration(te.TimeoutSeconds+ephemeralContainersExtraSeconds)*time.Second,
 		srcPod.Name,
 		srcPod.Namespace,
 	)

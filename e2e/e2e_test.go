@@ -177,8 +177,33 @@ func createTestDestroy(t *testing.T, gc helpers.GenericCluster) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// run the tests
 
+	// run the tests without network policies
+	runTests(ctx, t, svc, netAssertTestCases)
+
+	if gc.SkipNetPolTests() {
+		return
+	}
+
+	// create the network policies
+	k8s.KubectlApply(t, options, "./manifests/networkpolicies.yaml")
+
+	// read the tests again for a fresh start
+	netAssertTestCases, err = data.ReadTestsFromFile(testCasesFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// set the exit to 1 since this time the network policies will block the traffic
+	for _, tc := range netAssertTestCases {
+		tc.ExitCode = 1
+	}
+
+	// run the tests with network policies
+	runTests(ctx, t, svc, netAssertTestCases)
+}
+
+func runTests(ctx context.Context, t *testing.T, svc *kubeops.Service, netAssertTestCases data.Tests) {
 	lg := logger.NewHCLogger("INFO", "netassertv2-e2e", os.Stdout)
 	testRunner := engine.New(svc, lg)
 

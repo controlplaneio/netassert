@@ -13,11 +13,18 @@ provider "google" {
 
 resource "google_container_cluster" "e2etest" {
   name               = var.cluster_name
-  initial_node_count = 3
-  datapath_provider  = var.use_dataplanev2 ? "ADVANCED_DATAPATH" : null
+  initial_node_count = 4
+  addons_config {
+    network_policy_config {
+      disabled = false
+    }
+  }
+  network_policy {
+    enabled = true
+  }
   ip_allocation_policy {}
   node_config {
-    machine_type = "e2-medium"
+    machine_type = "e2-standard-2"
   }
 
   release_channel {
