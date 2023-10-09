@@ -225,7 +225,7 @@ All the tests are read from an YAML file or a directory (step **1**) and the res
 
 ## Development
 
-- You will need Go version 1.20.x or higher. Download the latest version of [just](https://github.com/casey/just/releases). To build the project you can use `just build`. The resulting binary will be in `cmd/netassert/cli/netassert`. To run `unit` tests you can use `just test`. There is a seperate [README.md](./e2e/README.md) that details `end-to-end` testing.
+- You will need Go version 1.20.x or higher. Download the latest version of [just](https://github.com/casey/just/releases). To build the project you can use `just build`. The resulting binary will be in `cmd/netassert/cli/netassert`. To run `unit` tests you can use `just test`. There is a separate [README.md](./e2e/README.md) that details `end-to-end` testing.
 
 ## Quick testing
 
@@ -315,7 +315,7 @@ The list of required permissions can be found in the `netassert` ClusterRole `ku
 
 ## Limitations
 
-- When performing UDP scanning, the sniffer container [image](https://github.com/controlplaneio/netassertv2-packet-sniffer) needs `cap_net_raw` capability so that it can bind and read packets from the network interface. As a result, admission controllers or other security mechanisms must be modified to allow the `sniffer` image to run with this capability. Currenlty, the Security context used by the ephemeral sniffer container looks like the following:
+- When performing UDP scanning, the sniffer container [image](https://github.com/controlplaneio/netassertv2-packet-sniffer) needs `cap_net_raw` capability so that it can bind and read packets from the network interface. As a result, admission controllers or other security mechanisms must be modified to allow the `sniffer` image to run with this capability. Currently, the Security context used by the ephemeral sniffer container looks like the following:
 
 ```yaml
 ...
