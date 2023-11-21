@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/controlplaneio/netassert/v2/internal/kubeops"
-	"github.com/controlplaneio/netassert/v2/internal/logger"
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/gruntwork-io/terratest/modules/terraform"
-
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/controlplaneio/netassert/v2/internal/kubeops"
+	"github.com/controlplaneio/netassert/v2/internal/logger"
 )
 
 type EKSCluster struct {
@@ -33,7 +33,7 @@ func NewEKSCluster(t *testing.T, terraformDir, clusterNameSuffix string, nm Netw
 		terraformDir:   terraformDir,
 		region:         "us-east-2",
 		name:           name,
-		version:        "1.25",
+		version:        "1.28",
 		networkMode:    nm,
 		kubeConfig:     name + ".kubeconfig",
 		kubeConfigPath: terraformDir + "/" + name + ".kubeconfig",

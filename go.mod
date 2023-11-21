@@ -1,16 +1,15 @@
 module github.com/controlplaneio/netassert/v2
 
-go 1.20
+go 1.21
 
 require (
-	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/gruntwork-io/terratest v0.41.15
 	github.com/hashicorp/go-hclog v1.4.0
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.2
 	go.uber.org/automaxprocs v1.5.2
-	go.uber.org/multierr v1.9.0
+	go.uber.org/mock v0.3.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.2
@@ -90,7 +89,6 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/zclconf/go-cty v1.9.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect

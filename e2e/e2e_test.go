@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/terratest/modules/k8s"
+	"github.com/hashicorp/go-hclog"
+
 	"github.com/controlplaneio/netassert/v2/e2e/helpers"
 	"github.com/controlplaneio/netassert/v2/internal/data"
 	"github.com/controlplaneio/netassert/v2/internal/engine"
 	"github.com/controlplaneio/netassert/v2/internal/kubeops"
 	"github.com/controlplaneio/netassert/v2/internal/logger"
-	"github.com/gruntwork-io/terratest/modules/k8s"
-	"github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 	snifferContainerPrefix  = "netassertv2-sniffer"
 	scannerContainerImage   = "docker.io/controlplane/netassertv2-l4-client:latest"
 	scannerContainerPrefix  = "netassertv2-client"
-	pauseInSeconds          = 1 // time to pause before each test case
+	pauseInSeconds          = 5 // time to pause before each test case
 	packetCaputureInterface = `eth0`
 	testCasesFile           = `./manifests/test-cases.yaml`
 	resultFile              = "result.log" // where we write the results

@@ -100,7 +100,7 @@
   targetPort: 333
   timeoutSeconds: 67
   attempts: 3
-  exitCode: 1
+  exitCode: 0
   src:
     k8sResource: # type endpoint
       kind: deployment

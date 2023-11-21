@@ -1,6 +1,5 @@
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "3.19.0"
 
   // set VPC name same as the EKS cluster name
   name = var.cluster_name

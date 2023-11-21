@@ -5,10 +5,11 @@ import (
 
 	"github.com/controlplaneio/netassert/v2/internal/data"
 	"github.com/controlplaneio/netassert/v2/internal/kubeops"
+	"github.com/hashicorp/go-hclog"
 )
 
 // loadTestCases - Reads test from a file or Directory
-func loadTestCases() (data.Tests, error) {
+func loadTestCases(testCasesFile, testCasesDir string) (data.Tests, error) {
 	if testCasesFile == "" && testCasesDir == "" {
 		return nil, errors.New("either an input file or an input dir containing the tests must be provided using " +
 			"flags (--input-file or --input-dir)")
@@ -35,11 +36,11 @@ func loadTestCases() (data.Tests, error) {
 }
 
 // createService - creates a new kubernetes operations service
-func createService() (*kubeops.Service, error) {
+func createService(kubeconfigPath string, l hclog.Logger) (*kubeops.Service, error) {
 	// if the user has supplied a kubeConfig file location then
-	if kubeConfig != "" {
-		return kubeops.NewServiceFromKubeConfigFile(kubeConfig, lg)
+	if kubeconfigPath != "" {
+		return kubeops.NewServiceFromKubeConfigFile(kubeconfigPath, l)
 	}
 
-	return kubeops.NewDefaultService(lg)
+	return kubeops.NewDefaultService(l)
 }

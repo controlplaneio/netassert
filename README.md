@@ -24,7 +24,13 @@ The [`sniffer`](https://github.com/controlplaneio/netassertv2-packet-sniffer) an
 
 ## Installation
 
-Download the latest stable version of `NetAssert` from the [releases](https://github.com/controlplaneio/netassert/releases) page
+- Please download the latest stable version of `NetAssert` from [releases](https://github.com/controlplaneio/netassert/releases) page. The binary is available for Linux, MacOS and Windows platforms.
+
+- If you are on Unix/Linux, you can also use the [download.sh](./download.sh) script to download the latest version of `NetAssert` into the current path:
+
+```bash
+curl -sL https://raw.githubusercontent.com/controlplaneio/netassert/master/download.sh | bash
+```
 
 ## Test specification
 
@@ -257,37 +263,42 @@ All the tests are read from an YAML file or a directory (step **1**) and the res
   statefulset.apps/web created
 ```
 
-- Run the netassert binary pointing it to the test cases:
+- Run the netassert binary pointing it to the test cases, one of the test cases will fail and this is by design:
 
 ```bash
-❯ ./netassert run --input-file cmd/netassert/cli/test-cases.yaml
+## if you have Go installed, you can build the binary using the the following command
+❯ just build ## from the root of the project
+go build -ldflags="-X 'main.appName=NetAssert' -X 'main.version=2.0.0-dev'" -o bin/netassert cmd/netassert/cli/*.go
 
-❯ cat results.tap
-1..4
+❯ bin/netassert run --input-file ./sample-tests/test-cases/test-cases.yaml
+
+❯ cat results.tap 
+TAP version 14
+1..6
 ok 1 - busybox-deploy-to-echoserver-deploy
-ok 2 - busybox-deploy-to-core-dns
-ok 3 - test-from-busybox-to-web-statefulset
-not ok 4 - test-from-busybox-to-host
+ok 2 - busybox-deploy-to-echoserver-deploy-2
+ok 3 - busybox-deploy-to-web-statefulset
+ok 4 - busybox-deploy-to-control-plane-dot-io
+ok 5 - test-from-pod1-to-pod2
+not ok 6 - busybox-deploy-to-fake-host
   ---
-  reason: ephemeral container netassertv2-client-u8dqy3qwo exit code for test test-from-busybox-to-host
+  reason: ephemeral container netassertv2-client-7y16ra1f9 exit code for test busybox-deploy-to-fake-host
   is 1 instead of 0
-  ...
-
 
 ```
 
 ## Compatibility
 
-Netassert has been tested with the following flavours of Kubernetes:
+NetAssert is architected for compatibility with Kubernetes versions that offer support for ephemeral containers. We have thoroughly tested NetAssert with Kubernetes versions 1.25 to 1.28, confirming compatibility and performance stability.
 
-| K8s Distribution | Version | CNI                             | Working |
-|------------------|---------|---------------------------------|---------|
-| AWS EKS          | 1.25    | AWS VPC CNI                     | Yes     |
-| AWS EKS          | 1.24    | AWS VPC CNI                     | Yes     |
-| AWS EKS          | 1.25    | Calico Version 3.25             | Yes     |
-| AWS EKS          | 1.24    | Calico version 3.25             | Yes     |
-| GCP GKE          | 1.24    | GCP VPC CNI                     | Yes     |
-| GCP GKE          | 1.24    | GCP Cilium 1.11 (Dataplane v2)  | Yes     |
+For broader validation, our team has also executed comprehensive [end-to-end tests](./e2e/README.md) against various Kubernetes distributions and CNIs which is detailed below:
+
+| Kubernetes Distribution | Supported Version | Container Network Interface (CNI) |
+|-------------------------|-------------------|------------------------------------
+| Amazon EKS              | 1.25 and higher   | AWS VPC CNI                       |
+| Amazon EKS              | 1.25 and higher   | Calico (Version 3.25 or later)    |
+| Google GKE              | 1.24 and higher   | Google Cloud Platform VPC CNI     |
+| Google GKE              | 1.24 and higher   | Google Cloud Dataplane V2         |
 
 ## Checking for ephemeral container support
 

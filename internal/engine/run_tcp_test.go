@@ -6,12 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/controlplaneio/netassert/v2/internal/data"
-	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/controlplaneio/netassert/v2/internal/data"
 )
 
 var sampleTest = `

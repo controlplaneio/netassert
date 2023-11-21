@@ -23,7 +23,7 @@
   protocol: udp
   targetPort: 53
   timeoutSeconds: 67
-  attempts: 1
+  attempts: 3
   exitCode: 0
   src:
     k8sResource:
@@ -42,7 +42,7 @@
   protocol: udp
   targetPort: 53
   timeoutSeconds: 67
-  attempts: 1
+  attempts: 3
   exitCode: 0
   src:
     k8sResource:

@@ -23,7 +23,6 @@ func NewUUIDString() (string, error) {
 // RandString - generates random string with length
 func RandString(length int) string {
 	// One change made in Go 1.20 is that math/rand is now random by default.
-	// Note rand.Seed(time.Now().UnixNano()) i
 	b := make([]byte, length)
 	for i := range b {
 		b[i] = charset[rand.Intn(len(charset))]

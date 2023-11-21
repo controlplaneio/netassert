@@ -1,10 +1,10 @@
 package data
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
-	"go.uber.org/multierr"
 	"gopkg.in/yaml.v3"
 )
 
@@ -120,7 +120,7 @@ func (r *K8sResource) validate() error {
 		resourceKindErr = fmt.Errorf("k8sResource invalid kind '%s'", r.Kind)
 	}
 
-	return multierr.Combine(nameErr, kindErr, nameSpaceErr, resourceKindErr)
+	return errors.Join(nameErr, kindErr, nameSpaceErr, resourceKindErr)
 }
 
 // validate - validates the Host type
@@ -225,7 +225,7 @@ func (te *Test) validate() error {
 		notSupportedTest = fmt.Errorf("with udp tests the destination must be a k8sResource")
 	}
 
-	return multierr.Combine(nameErr, invalidProtocolErr, targetPortErr,
+	return errors.Join(nameErr, invalidProtocolErr, targetPortErr,
 		invalidAttemptsErr, timeoutSecondsErr, invalidTestTypeErr, k8sResourceErr,
 		dstValidationErr, missingSrcErr, missingDstErr, notSupportedTest)
 }

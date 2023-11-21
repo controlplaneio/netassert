@@ -9,10 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/controlplaneio/netassert/v2/internal/data"
-	"github.com/controlplaneio/netassert/v2/internal/engine"
-	"github.com/controlplaneio/netassert/v2/internal/kubeops"
-	"github.com/controlplaneio/netassert/v2/internal/logger"
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/gruntwork-io/terratest/modules/random"
 	"github.com/gruntwork-io/terratest/modules/terraform"
@@ -20,6 +16,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/controlplaneio/netassert/v2/internal/data"
+	"github.com/controlplaneio/netassert/v2/internal/engine"
+	"github.com/controlplaneio/netassert/v2/internal/kubeops"
+	"github.com/controlplaneio/netassert/v2/internal/logger"
 )
 
 var envVarName = `AWS_EKS_E2E_CALICO_CNI`
@@ -110,7 +111,7 @@ func TestEKSWith_AWS_VPC_CNI(t *testing.T) {
 	options := k8s.NewKubectlOptions("", kubeConfigPath, "")
 
 	// we now apply calico CNI manifest
-	k8s.KubectlApply(t, options, "./calico-3.25.0.yaml")
+	k8s.KubectlApply(t, options, "./calico-3.26.4.yaml")
 
 	// update the desired_size variable to 3
 	tfOpt.Vars["desired_size"] = 3

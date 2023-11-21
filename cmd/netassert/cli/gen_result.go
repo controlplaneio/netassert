@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hashicorp/go-hclog"
+
 	"github.com/controlplaneio/netassert/v2/internal/data"
 )
 
 // genResult - Prints results to Stdout and writes it to a Tap file
-func genResult(testCases data.Tests) error {
+func genResult(testCases data.Tests, tapFile string, lg hclog.Logger) error {
 	failedTestCases := 0
 
 	for _, v := range testCases {
@@ -35,7 +37,7 @@ func genResult(testCases data.Tests) error {
 		return fmt.Errorf("unable to close tap file %q: %w", tapFile, err)
 	}
 
-	lg.Info("✍ Wrote TAP File", "fileName", tapFile)
+	lg.Info("✍ Wrote test result in a TAP File", "fileName", tapFile)
 
 	if failedTestCases > 0 {
 		return fmt.Errorf("total %v test cases have failed", failedTestCases)

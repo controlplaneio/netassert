@@ -8,9 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/controlplaneio/netassert/v2/internal/data"
 	"github.com/hashicorp/go-hclog"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/controlplaneio/netassert/v2/internal/data"
 )
 
 // Engine - type responsible for running the netAssert test(s)
@@ -59,14 +60,11 @@ func (e *Engine) RunTests(
 ) {
 	var wg sync.WaitGroup
 
-	for _, tc := range te {
-
+	for i, tc := range te {
 		wg.Add(1)
-
 		go func(tc *data.Test, wg *sync.WaitGroup) {
-			// time to sleep before running each test
 			defer wg.Done()
-
+			// run the test case
 			err := e.RunTest(ctx, tc, snifferContainerPrefix, snifferContainerImage,
 				scannerContainerPrefix, scannerContainerImage, suffixLength, packetCaptureInterface)
 			if err != nil {
@@ -75,9 +73,36 @@ func (e *Engine) RunTests(
 			}
 		}(tc, &wg)
 
-		time.Sleep(pause)
+		if i < len(te)-1 { // do not pause after the last test
+			cancellableDelay(ctx, pause)
+		}
+		// If the context is cancelled, we need to break out of the loop
+		if ctx.Err() != nil {
+			break
+		}
 	}
 	wg.Wait()
+}
+
+// cancellableDelay introduces a delay that can be interrupted by context cancellation.
+// This function is useful when you want to pause execution for a specific duration,
+// but also need the ability to respond quickly if an interrupt signal (like CTRL + C) is received.
+func cancellableDelay(ctx context.Context, duration time.Duration) {
+	select {
+	case <-time.After(duration):
+		// The case of time.After(duration) is selected when the specified duration has elapsed.
+		// This means the function completes its normal delay without any interruption.
+
+	case <-ctx.Done():
+		// The ctx.Done() case is selected if the context is cancelled before the duration elapses.
+		// This could happen if an interrupt signal is received.
+		// Returning early from the function allows the program to quickly respond to the cancellation signal,
+		// such as cleaning up resources, stopping further processing, etc.
+
+		// No specific action is needed here other than returning from the function,
+		// as the cancellation of the context is handled by the caller.
+		return
+	}
 }
 
 // RunTest - Runs a single netAssert test case
