@@ -20,7 +20,7 @@ jobs:
       - name: Run golangci-lint
         uses: reviewdog/action-golangci-lint@v2
         with:
-          go_version: "1.21"
+          go_version: "1.24.3"
           golangci_lint_flags: "--timeout=5m0s"
   build:
     runs-on: ubuntu-latest
@@ -32,7 +32,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
-          go-version: '1.21.x'
+          go-version: '1.24.3'
 
       - name: Install dependencies
         run: go get ./...
