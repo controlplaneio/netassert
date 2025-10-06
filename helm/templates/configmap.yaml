@@ -1,0 +1,16 @@
+{{- if ne .Values.mode "post-deploy" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "netassert.fullname" . }}
+  annotations:
+    {{- include "netassert.hookAnnotations" . | nindent 4 }}
+  labels:
+    app: {{ template "netassert.name" . }}
+    chart: {{ template "netassert.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  test.yaml: |-
+{{ .Values.testFile | indent 4 }}
+{{- end }}
