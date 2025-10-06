@@ -1,0 +1,45 @@
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pod1
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pod2
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ template "fluxcd-demo.fullname" . }}-pod2
+  namespace: pod2
+spec:
+  containers:
+    - name: webserver
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ template "fluxcd-demo.fullname" . }}-pod1
+  namespace: pod1
+spec:
+  containers:
+    - name: busybox
+      image: busybox
+      command:
+      - sleep
+      - "360000"
+      imagePullPolicy: IfNotPresent
+      resources:
+        requests:
+          memory: 64Mi
+          cpu: 300m
+        limits:
+          memory: 64Mi
+          cpu: 400m
+

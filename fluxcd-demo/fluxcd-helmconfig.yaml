@@ -1,0 +1,33 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: demo-repo
+  namespace: default
+spec:
+  type: "oci"
+  insecure: true
+  interval: 10s
+  url: oci://host.docker.internal:5000/fluxcd
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: demo-release
+  namespace: default
+spec:
+  interval: 10s
+  timeout: 5m
+  chart:
+    spec:
+      chart: fluxcd-demo
+      version: '0.0.x-dev'
+      sourceRef:
+        kind: HelmRepository
+        name: demo-repo
+      interval: 1m
+  releaseName: myhelmrelease
+  # valuesFrom:
+  #   - kind: ConfigMap
+  #     name: tests
+  #     valuesKey: test-cases.yaml
+  #     targetPath: testFile
