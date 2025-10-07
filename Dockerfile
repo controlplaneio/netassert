@@ -1,4 +1,7 @@
 FROM golang:1.24-alpine AS builder
+
+ARG VERSION
+
 COPY . /build
 WORKDIR /build
 

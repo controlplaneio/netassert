@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "netassert.fullname" . }}
+  labels:
+    app: {{ template "netassert.name" . }}
+    chart: {{ template "netassert.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  test.yaml: |-
+{{ .Values.testFile | indent 4 }}

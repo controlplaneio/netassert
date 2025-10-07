@@ -1,0 +1,42 @@
+
+
+job:
+  parallelism: 1
+  completions: 1
+  activeDeadlineSeconds: 900
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 3600
+  restartPolicy: Never
+  #suspend: false
+
+terminationGracePeriodSeconds: 30
+
+serviceAccount:
+
+image:
+  repository: ghcr.io/controlplaneio/netassert
+  tag: mytest
+  pullPolicy: IfNotPresent
+
+args:
+  - run
+  - --input-file
+  - /tests/test.yaml
+
+resources: {}
+
+priorityClassName: ""
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+securityContext: {}
+
+env: {}
+
+volumes:
+
+volumeMounts:
