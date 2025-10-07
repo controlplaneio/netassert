@@ -12,6 +12,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  RELEASE_VERSION: ${{ github.ref_name }}
 
 jobs:
   goreleaser:
@@ -31,6 +32,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   packagerelease:
     runs-on: ubuntu-latest
     permissions:
@@ -66,11 +68,26 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ github.ref_name }}
-      
+            VERSION=${RELEASE_VERSION}
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Prepare and package Helm chart
+        run: |
+          CLEAN_VERSION=$(echo "$RELEASE_VERSION" | sed 's/^v//')
+          echo "Using chart version and appVersion: $CLEAN_VERSION"
+          sed -i "s/^version: .*/version: ${CLEAN_VERSION}/" ./helm/Chart.yaml
+          sed -i "s/^appVersion: .*/appVersion: ${CLEAN_VERSION}/" ./helm/Chart.yaml
+          helm package ./helm -d .
+      - name: Push Helm chart to GHCR
+        run: |
+          helm push "./netassert-${CLEAN_VERSION}.tgz" oci://ghcr.io/${{ github.repository_owner }}/charts
