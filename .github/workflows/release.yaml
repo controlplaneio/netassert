@@ -85,8 +85,8 @@ jobs:
         run: |
           CLEAN_VERSION=$(echo "$RELEASE_VERSION" | sed 's/^v//')
           echo "Using chart version and appVersion: $CLEAN_VERSION"
-          sed -i "s/^version: .*/version: ${CLEAN_VERSION}/" ./helm/Chart.yaml
-          sed -i "s/^appVersion: .*/appVersion: ${CLEAN_VERSION}/" ./helm/Chart.yaml
+          sed -i "s/^version:$/version: ${CLEAN_VERSION}/" ./helm/Chart.yaml
+          sed -i "s/^appVersion:$/appVersion: ${CLEAN_VERSION}/" ./helm/Chart.yaml
           helm package ./helm -d .
       - name: Push Helm chart to GHCR
         run: |
