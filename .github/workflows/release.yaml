@@ -1,10 +1,9 @@
-name: goreleaser
+name: release
 
 on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
-      - "mytest"
 
 permissions:
   contents: write
@@ -24,7 +23,7 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.24.3'
-      - uses: anchore/sbom-action/download-syft@v0.13.3
+      - uses: anchore/sbom-action/download-syft@v0.20.6
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
@@ -90,4 +89,5 @@ jobs:
           helm package ./helm -d .
       - name: Push Helm chart to GHCR
         run: |
+          CLEAN_VERSION=$(echo "$RELEASE_VERSION" | sed 's/^v//')
           helm push "./netassert-${CLEAN_VERSION}.tgz" oci://ghcr.io/${{ github.repository_owner }}/charts
