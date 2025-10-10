@@ -104,7 +104,7 @@ jobs:
         run: |
           CLEAN_VERSION=$(echo "$RELEASE_VERSION" | sed 's/^v//')
           echo "Using chart version and appVersion: $CLEAN_VERSION"
-          yq -i ".image.tag = \"${RELEASE_VERSION}\"" values.yaml
+          yq -i ".image.tag = \"${RELEASE_VERSION}\"" ./helm/values.yaml
           yq -i ".version = \"${CLEAN_VERSION}\"" ./helm/Chart.yaml
           yq -i ".appVersion = \"${CLEAN_VERSION}\"" ./helm/Chart.yaml
           helm package ./helm -d .
