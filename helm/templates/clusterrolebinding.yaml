@@ -2,6 +2,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ template "netassert.fullname" . }}
+  annotations:
+    {{- include "netassert.hookAnnotations" . | nindent 4 }}
   labels:
     app: {{ template "netassert.name" . }}
     chart: {{ template "netassert.chart" . }}
