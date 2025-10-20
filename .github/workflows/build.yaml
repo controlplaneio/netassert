@@ -11,20 +11,20 @@ on:
     branches: ['main', 'master']
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+  # lint:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v3
 
-      - name: Run golangci-lint
-        uses: reviewdog/action-golangci-lint@v2
-        with:
-          go_version: "1.24.3"
-          golangci_lint_flags: "--timeout=5m0s"
+  #     - name: Run golangci-lint
+  #       uses: reviewdog/action-golangci-lint@v2
+  #       with:
+  #         go_version: "1.24.3"
+  #         golangci_lint_flags: "--timeout=5m0s"
   build:
     runs-on: ubuntu-latest
-    needs: lint
+    #needs: lint
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3

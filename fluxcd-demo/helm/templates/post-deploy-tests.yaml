@@ -1,0 +1,117 @@
+apiVersion: v1
+data:
+  test.yaml: |
+    ---
+    - name: busybox-deploy-to-echoserver-deploy
+      type: k8s
+      protocol: tcp
+      targetPort: 8080
+      timeoutSeconds: 67
+      attempts: 3
+      exitCode: 0
+      src:
+        k8sResource:
+          kind: deployment
+          name: {{ template "fluxcd-demo.fullname" . }}-busybox
+          namespace: busybox
+      dst:
+        k8sResource:
+          kind: deployment
+          name: {{ template "fluxcd-demo.fullname" . }}-echoserver
+          namespace: echoserver
+    ######
+    ######
+    - name: busybox-deploy-to-echoserver-deploy-2
+      type: k8s
+      protocol: udp
+      targetPort: 53
+      timeoutSeconds: 67
+      attempts: 1
+      exitCode: 0
+      src:
+        k8sResource:
+          kind: deployment
+          name: {{ template "fluxcd-demo.fullname" . }}-busybox
+          namespace: busybox
+      dst:
+        k8sResource:
+          kind: deployment
+          name: {{ template "fluxcd-demo.fullname" . }}-echoserver
+          namespace: echoserver
+    ########
+    #########
+    #######
+    ######
+    - name: busybox-deploy-to-web-statefulset
+      type: k8s
+      protocol: tcp
+      targetPort: 80
+      timeoutSeconds: 67
+      attempts: 3
+      exitCode: 0
+      src:
+        k8sResource: # this is type endpoint
+          kind: deployment
+          name: {{ template "fluxcd-demo.fullname" . }}-busybox
+          namespace: busybox
+      dst:
+        k8sResource: ## this is type endpoint
+          kind: statefulset
+          name: {{ template "fluxcd-demo.fullname" . }}-web
+          namespace: web
+    ###
+    ####
+    - name: busybox-deploy-to-control-plane-dot-io
+      type: k8s
+      protocol: tcp
+      targetPort: 80
+      timeoutSeconds: 67
+      attempts: 3
+      exitCode: 0
+      src:
+        k8sResource: # type endpoint
+          kind: deployment
+          name: {{ template "fluxcd-demo.fullname" . }}-busybox
+          namespace: busybox
+      dst:
+        host: # type host or node or machine
+          name: control-plane.io
+    ###
+    ###
+    - name: test-from-pod1-to-pod2
+      type: k8s
+      protocol: tcp
+      targetPort: 80
+      timeoutSeconds: 67
+      attempts: 3
+      exitCode: 0
+      src:
+        k8sResource: ##
+          kind: pod
+          name: {{ template "fluxcd-demo.fullname" . }}-pod1
+          namespace: pod1
+      dst:
+        k8sResource:
+          kind: pod
+          name: {{ template "fluxcd-demo.fullname" . }}-pod2
+          namespace: pod2
+    ###
+    ###
+    - name: busybox-deploy-to-fake-host
+      type: k8s
+      protocol: tcp
+      targetPort: 333
+      timeoutSeconds: 67
+      attempts: 3
+      exitCode: 1
+      src:
+        k8sResource: # type endpoint
+          kind: deployment
+          name: {{ template "fluxcd-demo.fullname" . }}-busybox
+          namespace: busybox
+      dst:
+        host: # type host or node or machine
+          name: 0.0.0.0
+kind: ConfigMap
+metadata:
+  name: "{{ .Release.Name }}-netassert"
