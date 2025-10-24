@@ -22,10 +22,10 @@ The E2E tests uses `terraform` and `terratest` to spin up GKE and EKS clusters. 
 
 ## Running tests
 
-- Make sure you have installed `kubectl` and `AWS Cli v2``
-- Make sure you have also installed Install gke-gcloud-auth-plugin for use with kubectl by following this [link](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
+- Make sure you have installed `kubectl` and `AWS Cli v2`
+- Make sure you have also installed `gke-gcloud-auth-plugin` for kubectl by following this [link](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
 
-- For AWS EKS tests, make sure you have valid AWS credentials
+For AWS EKS tests, make sure you have valid AWS credentials:
 
 ```bash
 ❯ aws sso login
