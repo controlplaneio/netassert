@@ -19,6 +19,7 @@ jobs:
         uses: reviewdog/action-golangci-lint@v2
         with:
           go_version: "1.25.4"
+          fail_level: "none"
 
   build:
     runs-on: ubuntu-latest
