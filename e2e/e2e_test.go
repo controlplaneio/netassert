@@ -1,14 +1,19 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/hashicorp/go-hclog"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/controlplaneio/netassert/v2/e2e/helpers"
 	"github.com/controlplaneio/netassert/v2/internal/data"
@@ -30,15 +35,47 @@ const (
 )
 
 var (
+	envVarKind          = `KIND_E2E_TESTS`
 	envVarGKEWithVPC    = `GKE_VPC_E2E_TESTS`
 	envVarGKEWithDPv2   = `GKE_DPV2_E2E_TESTS`
 	envVarEKSWithVPC    = `EKS_VPC_E2E_TESTS`
 	envVarEKSWithCalico = `EKS_CALICO_E2E_TESTS`
 )
 
+type MinimalK8sObject struct {
+	Kind     string `json:"kind"`
+	Metadata struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	} `json:"metadata"`
+}
+
+var denyAllPolicyBody = `
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+`
+
 func TestMain(m *testing.M) {
 	exitVal := m.Run()
 	os.Exit(exitVal)
+}
+
+func TestKind(t *testing.T) {
+	t.Parallel()
+
+	if os.Getenv(envVarKind) == "" {
+		t.Skipf("skipping test associated with Kind as %q environment variable was not set", envVarKind)
+	}
+
+	kind := helpers.NewKindCluster(t, "./clusters/kind", "kind-calico", helpers.Calico)
+	createTestDestroy(t, kind)
 }
 
 func TestGKEWithVPC(t *testing.T) {
@@ -87,6 +124,54 @@ func TestEKSWithCalico(t *testing.T) {
 	createTestDestroy(t, eks)
 }
 
+func waitUntilManifestReady(t *testing.T, svc *kubeops.Service, manifestPath string) []string {
+	timeout := 20 * time.Minute
+	pollTime := 30 * time.Second
+
+	data, err := os.ReadFile(manifestPath)
+	require.NoError(t, err, "Failed to read manifest file")
+
+	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096)
+	namespaces := make([]string, 0)
+
+	for {
+		var obj MinimalK8sObject
+		err := decoder.Decode(&obj)
+
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err, "Failed to parse YAML document")
+
+		if obj.Kind == "" || obj.Metadata.Name == "" {
+			t.Fatalf("Found malformed kubernetes  document in YAML")
+			continue
+		}
+
+		kind := strings.ToLower(obj.Kind)
+
+		switch kind {
+		case "deployment", "daemonset", "replicaset", "statefulset", "pod":
+		default:
+			continue
+		}
+
+		targetNs := strings.ToLower(obj.Metadata.Namespace)
+		if targetNs == "" {
+			targetNs = "default"
+		}
+
+		if !slices.Contains(namespaces, targetNs) {
+			namespaces = append(namespaces, targetNs)
+		}
+
+		if err := svc.WaitForPodInResourceReady(obj.Metadata.Name, targetNs, kind, pollTime, timeout); err != nil {
+			t.Fatalf("Error while waiting for resource %s to become ready: %s", obj.Metadata.Name, err.Error())
+		}
+	}
+	return namespaces
+}
+
 func createTestDestroy(t *testing.T, gc helpers.GenericCluster) {
 	defer gc.Destroy(t) // safe to call also when the cluster has not been created
 	gc.Create(t)
@@ -112,82 +197,24 @@ func createTestDestroy(t *testing.T, gc helpers.GenericCluster) {
 	// let's wait for all the nodes to be ready
 	k8s.WaitUntilAllNodesReady(t, options, 20, 1*time.Minute)
 
-	timeout := 5 * time.Minute
-	pollTime := 30 * time.Second
-	type k8sManifest struct {
-		name      string
-		namespace string
-		filePath  string
-		objType   string
-	}
-
-	k8sManifests := []k8sManifest{
-		{
-			name:      "fluentd",
-			namespace: "fluentd",
-			filePath:  "./manifests/daemonset.yaml",
-			objType:   "daemonset",
-		},
-		{
-			name:      "echoserver",
-			namespace: "echoserver",
-			filePath:  "./manifests/deployment.yaml",
-			objType:   "deployment",
-		},
-		{
-			name:      "busybox",
-			namespace: "busybox",
-			filePath:  "./manifests/deployment.yaml",
-			objType:   "deployment",
-		},
-		{
-			name:      "pod1",
-			namespace: "pod1",
-			filePath:  "./manifests/pod1-pod2.yaml",
-			objType:   "pod",
-		},
-		{
-			name:      "pod2",
-			namespace: "pod2",
-			filePath:  "./manifests/pod1-pod2.yaml",
-			objType:   "pod",
-		},
-		{
-			name:      "web",
-			namespace: "web",
-			filePath:  "./manifests/statefulset.yaml",
-			objType:   "statefulset",
-		},
-	}
-
 	// we apply all the manifests and then run
-
-	for _, v := range k8sManifests {
-		// apply the manifest
-		k8s.KubectlApply(t, options, v.filePath)
-		// wait for the object to have at least one pod healthy
-		err = svc.WaitForPodInResourceReady(v.name, v.namespace,
-			v.objType, pollTime, timeout)
-		// if the Pods in the objects are not ready within allocated time, fail the test
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+	k8s.KubectlApply(t, options, "./manifests/workload.yaml")
+	namespaces := waitUntilManifestReady(t, svc, "./manifests/workload.yaml")
 
 	netAssertTestCases, err := data.ReadTestsFromFile(testCasesFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// run the tests without network policies
+	// create the network policies
+	k8s.KubectlApply(t, options, "./manifests/networkpolicies.yaml")
+
+	// run the sample tests
 	runTests(ctx, t, svc, netAssertTestCases)
 
 	if gc.SkipNetPolTests() {
 		return
 	}
-
-	// create the network policies
-	k8s.KubectlApply(t, options, "./manifests/networkpolicies.yaml")
 
 	// read the tests again for a fresh start
 	netAssertTestCases, err = data.ReadTestsFromFile(testCasesFile)
@@ -200,7 +227,16 @@ func createTestDestroy(t *testing.T, gc helpers.GenericCluster) {
 		tc.ExitCode = 1
 	}
 
-	// run the tests with network policies
+	for _, ns := range namespaces {
+		nsKubeOptions := k8s.NewKubectlOptions("", kubeConfig, ns)
+
+		k8s.KubectlApplyFromString(t, nsKubeOptions, denyAllPolicyBody)
+
+		k8s.WaitUntilNetworkPolicyAvailable(t, nsKubeOptions, "default-deny-all", 10, 5*time.Second)
+		require.NoError(t, err, "Error, the NetworkPolicy should exist in namespace %s", ns)
+	}
+
+	// run the tests with network policies blocking everything
 	runTests(ctx, t, svc, netAssertTestCases)
 }
 

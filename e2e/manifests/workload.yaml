@@ -1,0 +1,195 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fluentd
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: fluentd
+  labels:
+    k8s-app: fluentd-logging
+spec:
+  selector:
+    matchLabels:
+      name: fluentd-elasticsearch
+  template:
+    metadata:
+      labels:
+        name: fluentd-elasticsearch
+    spec:
+      tolerations:
+        # these tolerations are to have the daemonset runnable on control plane nodes
+        # remove them if your control plane nodes should not run pods
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: fluentd-elasticsearch
+          image: fluentd:v1.18-1
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: echoserver
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: busybox
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echoserver
+  namespace: echoserver
+  labels:
+    app: echoserver-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echoserver
+  template:
+    metadata:
+      labels:
+        app: echoserver
+    spec:
+      containers:
+        - name: echoserver
+          image: k8s.gcr.io/e2e-test-images/echoserver:2.5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: web
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 300m
+            limits:
+              memory: 64Mi
+              cpu: 400m
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox
+  namespace: busybox
+  labels:
+    app: busybox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: busybox
+  template:
+    metadata:
+      labels:
+        app: busybox
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command:
+            - sleep
+            - "360000"
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 300m
+            limits:
+              memory: 64Mi
+              cpu: 400m
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pod1
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pod2
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod2
+  namespace: pod2
+  labels:
+    name: pod2
+spec:
+  containers:
+    - name: webserver
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod1
+  namespace: pod1
+  labels:
+    name: pod1
+spec:
+  containers:
+    - name: busybox
+      image: busybox
+      command:
+      - sleep
+      - "360000"
+      imagePullPolicy: IfNotPresent
+      resources:
+        requests:
+          memory: 64Mi
+          cpu: 300m
+        limits:
+          memory: 64Mi
+          cpu: 400m
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+  namespace: web
+spec:
+  serviceName: "nginx"
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+              name: web

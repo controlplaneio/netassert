@@ -169,22 +169,27 @@ func (svc *Service) WaitForPodInResourceReady(name, namespace, resourceType stri
 	}
 
 	timeOutCh := time.After(timeout)
-
 	ticker := time.NewTicker(poll)
+
+	trigger := make(chan struct{}, 1)
+	trigger <- struct{}{}
 
 	for {
 		select {
 		case <-timeOutCh:
 			return fmt.Errorf("timed out getting pod for %q - %s/%s, timeout duration=%v", resourceType,
 				namespace, name, timeout.String())
+		case <-trigger:
 		case <-ticker.C:
-			_, err := fn(context.Background(), name, namespace)
-			if err == nil {
-				log.Printf("Found name=%s namespace=%s  resourceType=%s", name, namespace, resourceType)
-				return nil
-			}
-			log.Println("polling for object", name, namespace, resourceType, err)
-			svc.Log.Info("polling", "name", name, "namespace", namespace)
 		}
+
+		log.Println("polling for object", name, namespace, resourceType)
+		svc.Log.Info("polling", "name", name, "namespace", namespace)
+		_, err := fn(context.Background(), name, namespace)
+		if err == nil {
+			log.Printf("Found name=%s namespace=%s  resourceType=%s", name, namespace, resourceType)
+			return nil
+		}
+		log.Println("error while polling for object, retrying...", name, namespace, resourceType, err)
 	}
 }

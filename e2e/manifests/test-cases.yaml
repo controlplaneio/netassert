@@ -3,7 +3,7 @@
   type: k8s
   protocol: tcp
   targetPort: 8080
-  timeoutSeconds: 67
+  timeoutSeconds: 269
   attempts: 3
   exitCode: 0
   src:
@@ -22,7 +22,7 @@
   type: k8s
   protocol: udp
   targetPort: 53
-  timeoutSeconds: 67
+  timeoutSeconds: 269
   attempts: 3
   exitCode: 0
   src:
@@ -41,7 +41,7 @@
   type: k8s
   protocol: udp
   targetPort: 53
-  timeoutSeconds: 67
+  timeoutSeconds: 269
   attempts: 3
   exitCode: 0
   src:
@@ -60,7 +60,7 @@
   type: k8s
   protocol: tcp
   targetPort: 80
-  timeoutSeconds: 67
+  timeoutSeconds: 269
   attempts: 3
   exitCode: 0
   src:
@@ -75,11 +75,30 @@
       namespace: web
 #######
 ######
+- name: web-statefulset-to-busybox-deploy
+  type: k8s
+  protocol: tcp
+  targetPort: 8080
+  timeoutSeconds: 269
+  attempts: 3
+  exitCode: 1
+  src:
+    k8sResource: ## this is type endpoint
+      kind: statefulset
+      name: web
+      namespace: web
+  dst:
+    k8sResource:
+      kind: deployment
+      name: echoserver
+      namespace: echoserver
+#######
+######
 - name: fluentd-daemonset-to-web-statefulset
   type: k8s
   protocol: tcp
   targetPort: 80
-  timeoutSeconds: 67
+  timeoutSeconds: 269
   attempts: 3
   exitCode: 0
   src:
@@ -98,8 +117,8 @@
   type: k8s
   protocol: tcp
   targetPort: 80
-  timeoutSeconds: 67
-  attempts: 3
+  timeoutSeconds: 269
+  attempts: 10
   exitCode: 0
   src:
     k8sResource: # type endpoint
@@ -115,7 +134,7 @@
   type: k8s
   protocol: tcp
   targetPort: 80
-  timeoutSeconds: 67
+  timeoutSeconds: 269
   attempts: 3
   exitCode: 0
   src:
@@ -134,7 +153,7 @@
   type: k8s
   protocol: tcp
   targetPort: 333
-  timeoutSeconds: 67
+  timeoutSeconds: 269
   attempts: 3
   exitCode: 1
   src:

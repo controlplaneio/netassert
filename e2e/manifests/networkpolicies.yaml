@@ -1,70 +1,12 @@
----
-kind: NetworkPolicy
-apiVersion: networking.k8s.io/v1
-metadata:
-  namespace: fluentd
-  name: fluentd-elasticsearch
-spec:
-  podSelector:
-    matchLabels:
-      name: fluentd-elasticsearch
-  ingress:
----
-kind: NetworkPolicy
-apiVersion: networking.k8s.io/v1
-metadata:
-  namespace: echoserver
-  name: echoserver
-spec:
-  podSelector:
-    matchLabels:
-      app: echoserver
-  ingress:
----
-kind: NetworkPolicy
-apiVersion: networking.k8s.io/v1
-metadata:
-  namespace: busybox
-  name: busybox
-spec:
-  podSelector:
-    matchLabels:
-      app: busybox
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  egress:
----
-kind: NetworkPolicy
-apiVersion: networking.k8s.io/v1
-metadata:
-  namespace: pod1
-  name: pod1
-spec:
-  podSelector:
-    matchLabels:
-      name: pod1
-  ingress:
----
-kind: NetworkPolicy
-apiVersion: networking.k8s.io/v1
-metadata:
-  namespace: pod2
-  name: pod2
-spec:
-  podSelector:
-    matchLabels:
-      name: pod2
-  ingress:
----
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
   namespace: web
-  name: nginx
+  name: web
 spec:
   podSelector:
     matchLabels:
       app: nginx
-  ingress:
+  policyTypes:
+    - Egress
+  egress: []

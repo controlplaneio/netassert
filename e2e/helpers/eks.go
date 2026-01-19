@@ -33,19 +33,22 @@ func NewEKSCluster(t *testing.T, terraformDir, clusterNameSuffix string, nm Netw
 		terraformDir:   terraformDir,
 		region:         "us-east-2",
 		name:           name,
-		version:        "1.28",
+		version:        "1.34",
 		networkMode:    nm,
 		kubeConfig:     name + ".kubeconfig",
 		kubeConfigPath: terraformDir + "/" + name + ".kubeconfig",
 	}
 
+	vpcNetPol := nm == VPC
+
 	tv := map[string]interface{}{
-		"region":          c.region,
-		"cluster_version": c.version,
-		"cluster_name":    c.name,
-		"kubeconfig_file": c.kubeConfig,
-		"desired_size":    3,
-		"node_group_name": "ng",
+		"region":                      c.region,
+		"cluster_version":             c.version,
+		"cluster_name":                c.name,
+		"kubeconfig_file":             c.kubeConfig,
+		"desired_size":                3,
+		"node_group_name":             "ng",
+		"enable_vpc_network_policies": vpcNetPol,
 	}
 
 	if nm == Calico {
@@ -74,7 +77,7 @@ func (g *EKSCluster) Create(t *testing.T) {
 
 func (g *EKSCluster) installCalico(t *testing.T) {
 	// once the cluster is ready, we need to follow the instructions here
-	// https://docs.tigera.io/calico/3.25/getting-started/kubernetes/managed-public-cloud/eks
+	// https://docs.tigera.io/calico/3.26/getting-started/kubernetes/managed-public-cloud/eks
 	ctx := context.Background()
 
 	lg := logger.NewHCLogger("INFO", "netassertv2-e2e-calico", os.Stdout)
@@ -99,7 +102,7 @@ func (g *EKSCluster) installCalico(t *testing.T) {
 	options := k8s.NewKubectlOptions("", g.kubeConfigPath, "")
 
 	// we now apply calico CNI manifest
-	k8s.KubectlApply(t, options, g.terraformDir+"/../calico-3.25.0.yaml")
+	k8s.KubectlApply(t, options, g.terraformDir+"/../calico-3.26.4.yaml")
 
 	// update the desired_size variable to 3
 	g.opts.Vars["desired_size"] = 3
@@ -127,5 +130,5 @@ func (g *EKSCluster) KubeConfigGet() string {
 }
 
 func (g *EKSCluster) SkipNetPolTests() bool {
-	return g.networkMode != Calico
+	return false // used to be: return g.networkMode != Calico
 }
