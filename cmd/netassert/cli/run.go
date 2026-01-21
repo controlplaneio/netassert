@@ -35,9 +35,9 @@ type runCmdConfig struct {
 var runCmdCfg = runCmdConfig{
 	TapFile:                "results.tap", // name of the default TAP file where the results will be written
 	SuffixLength:           9,             // suffix length of the random string to be appended to the container name
-	SnifferContainerImage:  "docker.io/controlplane/netassertv2-packet-sniffer:v1.1.7",
+	SnifferContainerImage:  fmt.Sprintf("%s:%s", "docker.io/controlplane/netassertv2-packet-sniffer", snifferImgVersion),
 	SnifferContainerPrefix: "netassertv2-sniffer",
-	ScannerContainerImage:  "docker.io/controlplane/netassertv2-l4-client:v1.0.6",
+	ScannerContainerImage:  fmt.Sprintf("%s:%s", "docker.io/controlplane/netassertv2-l4-client", scannerImgVersion),
 	ScannerContainerPrefix: "netassertv2-client",
 	PauseInSeconds:         1,      // seconds to pause before each test case
 	PacketCaptureInterface: `eth0`, // the interface used by the sniffer image to capture traffic

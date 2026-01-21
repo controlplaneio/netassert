@@ -5,7 +5,7 @@ version := "0.0.1"
 
 # build the binary in ./bin folder
 build:
-	go build -ldflags="-X 'main.appName=NetAssert' -X 'main.version=2.0.0-dev'" -o bin/netassert cmd/netassert/cli/*.go
+	go build -o bin/netassert cmd/netassert/cli/*.go
 
 # build and run the binary
 run: build

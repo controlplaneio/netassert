@@ -16,6 +16,8 @@ env:
   GH_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   RELEASE_VERSION: ${{ github.ref_name }}
+  SCANNER_IMG_VERSION: v1.0.10
+  SNIFFER_IMG_VERSION: v1.1.8
 
 jobs:
   goreleaser:
@@ -89,6 +91,8 @@ jobs:
             ${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
             VERSION=${{ env.RELEASE_VERSION }}
+            SCANNER_IMG_VERSION=${{ env.SCANNER_IMG_VERSION }}
+            SNIFFER_IMG_VERSION=${{ env.SNIFFER_IMG_VERSION }}
 
       - name: Sign artifact
         run: |
