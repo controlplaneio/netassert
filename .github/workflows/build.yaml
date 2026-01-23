@@ -39,6 +39,11 @@ jobs:
       - name: Test
         run: go test -v ./... --race
 
+      - name: E2E Test
+        env:
+          KIND_E2E_TESTS: yes
+        run: go test -timeout 20m -v ./e2e/...
+
       - name: Build
         run: go build -v ./...
 
