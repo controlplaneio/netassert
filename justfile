@@ -25,18 +25,18 @@ clean:
 
 # create a new kind k8s cluster called packet-test
 kind-up:
-	kind create cluster --name packet-test --config kubernetes/kind/kind-config.yaml
+	kind create cluster --name packet-test --config ./e2e/clusters/kind/kind-config.yaml
 
 # delete the kind k8s cluster called packet-test
 kind-down:
 	kind delete clusters packet-test
 # deployObj kubernetes manifests
 k8s-apply:
-	kubectl apply -f ./kubernetes/manifests
+	kubectl apply -f ./e2e/manifests/workload.yaml
 
 # delete kubernetes deployObj
 k8s-rm-apply:
-	kubectl delete -f ./kubernetes/manifests
+	kubectl delete -f ./e2e/manifests/workload.yaml
 
 # build docker image and tag it 0.0.01
 docker-build:

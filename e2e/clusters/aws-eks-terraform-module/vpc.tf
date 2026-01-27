@@ -3,6 +3,7 @@ module "vpc" {
 
   // set VPC name same as the EKS cluster name
   name = var.cluster_name
+  version = "~> 5.0"
 
   cidr = "10.0.0.0/16"
   azs  = slice(data.aws_availability_zones.available.names, 0, 3)
@@ -13,6 +14,7 @@ module "vpc" {
   enable_nat_gateway   = true
   single_nat_gateway   = true
   enable_dns_hostnames = true
+  enable_dns_support   = true
 
   public_subnet_tags = {
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"

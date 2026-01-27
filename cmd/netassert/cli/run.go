@@ -82,7 +82,7 @@ func runTests(lg hclog.Logger) error {
 
 	// ping the kubernetes cluster and check to see if
 	// it is alive and that it has support for ephemeral container(s)
-	ping(ctx)
+	ping(ctx, lg, k8sSvc)
 
 	// initialise our test runner
 	testRunner := engine.New(k8sSvc, lg)
