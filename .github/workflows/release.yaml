@@ -16,8 +16,8 @@ env:
   GH_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   RELEASE_VERSION: ${{ github.ref_name }}
-  SCANNER_IMG_VERSION: v1.0.10
-  SNIFFER_IMG_VERSION: v1.1.8
+  SCANNER_IMG_VERSION: v1.0.11
+  SNIFFER_IMG_VERSION: v1.1.9
 
 jobs:
   goreleaser:
