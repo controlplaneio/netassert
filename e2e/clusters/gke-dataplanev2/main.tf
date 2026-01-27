@@ -17,7 +17,7 @@ resource "google_container_cluster" "e2etest" {
   datapath_provider  = var.use_dataplanev2 ? "ADVANCED_DATAPATH" : null
   ip_allocation_policy {}
   node_config {
-    machine_type = "e2-medium"
+    machine_type = "e2-standard-2"
   }
 
   release_channel {

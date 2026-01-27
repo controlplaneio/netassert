@@ -6,11 +6,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// these variables are overwritten at build time using ldflags
 var (
-	version   = "v2.0.0-dev" // netassert version
-	appName   = "NetAssert"  // name of the application
-	gitHash   = ""           // the git hash of the build
-	buildDate = ""           // build date, will be injected by the build system
+	version           = "v2.0.0-dev" // netassert version
+	appName           = "NetAssert"  // name of the application
+	gitHash           = ""           // the git hash of the build
+	buildDate         = ""           // build date, will be injected by the build system
+	scannerImgVersion = "latest"     // scanner container image version
+	snifferImgVersion = "latest"     // sniffer container image version
 )
 
 var rootCmd = &cobra.Command{

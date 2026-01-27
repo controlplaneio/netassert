@@ -25,9 +25,13 @@ variable "desired_size" {
   default     = 0
 }
 
-
 variable "node_group_name" {
   type        = string
   description = "prefix of the node group"
   default     = "group"
+}
+
+variable "enable_vpc_network_policies" {
+  type        = bool
+  description = "enable or disable vpc network policies"
 }

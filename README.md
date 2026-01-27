@@ -231,7 +231,7 @@ All the tests are read from an YAML file or a directory (step **1**) and the res
 
 ## Development
 
-- You will need Go version 1.20.x or higher. Download the latest version of [just](https://github.com/casey/just/releases). To build the project you can use `just build`. The resulting binary will be in `cmd/netassert/cli/netassert`. To run `unit` tests you can use `just test`. There is a separate [README.md](./e2e/README.md) that details `end-to-end` testing.
+- You will need Go version 1.25.x or higher. Download the latest version of [just](https://github.com/casey/just/releases). To build the project you can use `just build`. The resulting binary will be in `cmd/netassert/cli/netassert`. To run `unit` tests you can use `just test`. There is a separate [README.md](./e2e/README.md) that details `end-to-end` testing.
 
 ## Quick testing
 
@@ -241,64 +241,102 @@ All the tests are read from an YAML file or a directory (step **1**) and the res
 
 - If you want to quickly test `NetAssert`, you can make use of the sample test(s) and manifests provided
 
-- You will also need a working kubernetes cluster with ephemeral/debug container support, you can spin one quickly using the `justfile` included in the repo
+- You will also need a working kubernetes cluster with ephemeral/debug container support and a CNI that supports Network Policies, you can spin one quickly using the `justfile` included in the repo
 
 ```bash
 ❯ just kind-down ; just kind-up
+❯ just calico-apply
 ```
 
-- In order to use the sample tests, you need to create kubernetes resources:
+- wait for all the nodes to become ready
+```bash
+❯ kubectl get nodes
+```
+
+- In order to use the sample tests, you need to create network policies and kubernetes resources:
 
 ```bash
 ❯ just k8s-apply
-
-  kubectl apply -f ./kubernetes/manifests
+  kubectl apply -f ./e2e/manifests/workload.yaml
   namespace/fluentd created
   daemonset.apps/fluentd created
   namespace/echoserver created
   namespace/busybox created
   deployment.apps/echoserver created
   deployment.apps/busybox created
+  namespace/pod1 created
+  namespace/pod2 created
+  pod/pod2 created
+  pod/pod1 created
   namespace/web created
   statefulset.apps/web created
 ```
 
+```bash
+❯ just netpol-apply
+```
+
+- Wait for the workload to become ready
+```bash
+❯ kubectl get pods -A
+```
 - Run the netassert binary pointing it to the test cases, one of the test cases will fail and this is by design:
 
 ```bash
-## if you have Go installed, you can build the binary using the the following command
 ❯ just build ## from the root of the project
-go build -ldflags="-X 'main.appName=NetAssert' -X 'main.version=2.0.0-dev'" -o bin/netassert cmd/netassert/cli/*.go
 
-❯ bin/netassert run --input-file ./sample-tests/test-cases/test-cases.yaml
+❯ bin/netassert run --input-file ./e2e/manifests/test-cases.yaml
 
 ❯ cat results.tap 
 TAP version 14
-1..6
+1..9
 ok 1 - busybox-deploy-to-echoserver-deploy
 ok 2 - busybox-deploy-to-echoserver-deploy-2
-ok 3 - busybox-deploy-to-web-statefulset
-ok 4 - busybox-deploy-to-control-plane-dot-io
-ok 5 - test-from-pod1-to-pod2
-not ok 6 - busybox-deploy-to-fake-host
-  ---
-  reason: ephemeral container netassertv2-client-7y16ra1f9 exit code for test busybox-deploy-to-fake-host
-  is 1 instead of 0
+ok 3 - fluentd-deamonset-to-echoserver-deploy
+ok 4 - busybox-deploy-to-web-statefulset
+ok 5 - web-statefulset-to-busybox-deploy
+ok 6 - fluentd-daemonset-to-web-statefulset
+ok 7 - busybox-deploy-to-control-plane-dot-io
+ok 8 - test-from-pod1-to-pod2
+ok 9 - busybox-deploy-to-fake-host
+```
 
+- To see the results when a check fails
+
+```bash
+❯ just netpol-rm-apply
+❯ bin/netassert run --input-file ./e2e/manifests/test-cases.yaml
+
+❯ cat results.tap
+TAP version 14
+1..9
+ok 1 - busybox-deploy-to-echoserver-deploy
+ok 2 - busybox-deploy-to-echoserver-deploy-2
+ok 3 - fluentd-deamonset-to-echoserver-deploy
+ok 4 - busybox-deploy-to-web-statefulset
+not ok 5 - web-statefulset-to-busybox-deploy
+  ---
+  reason: ephemeral container netassertv2-client-aihlpxcys exit code for test web-statefulset-to-busybox-deploy
+  is 0 instead of 1
+  ...
+ok 6 - fluentd-daemonset-to-web-statefulset
+ok 7 - busybox-deploy-to-control-plane-dot-io
+ok 8 - test-from-pod1-to-pod2
+ok 9 - busybox-deploy-to-fake-host
 ```
 
 ## Compatibility
 
-NetAssert is architected for compatibility with Kubernetes versions that offer support for ephemeral containers. We have thoroughly tested NetAssert with Kubernetes versions 1.25 to 1.28, confirming compatibility and performance stability.
+NetAssert is architected for compatibility with Kubernetes versions that offer support for ephemeral containers. We have thoroughly tested NetAssert with Kubernetes versions 1.25 to 1.35, confirming compatibility and performance stability.
 
 For broader validation, our team has also executed comprehensive [end-to-end tests](./e2e/README.md) against various Kubernetes distributions and CNIs which is detailed below:
 
 | Kubernetes Distribution | Supported Version | Container Network Interface (CNI) |
 |-------------------------|-------------------|------------------------------------
-| Amazon EKS              | 1.25 and higher   | AWS VPC CNI                       |
-| Amazon EKS              | 1.25 and higher   | Calico (Version 3.25 or later)    |
-| Google GKE              | 1.24 and higher   | Google Cloud Platform VPC CNI     |
-| Google GKE              | 1.24 and higher   | Google Cloud Dataplane V2         |
+| Amazon EKS              | 1.34 and higher   | AWS VPC CNI                       |
+| Amazon EKS              | 1.34 and higher   | Calico (Version 3.26 or later)    |
+| Google GKE              | 1.33 and higher   | Google Cloud Platform VPC CNI     |
+| Google GKE              | 1.33 and higher   | Google Cloud Dataplane V2         |
 
 ## Checking for ephemeral container support
 
@@ -315,14 +353,14 @@ You can check for ephemeral container support using the following command:
 You can increase the logging level to `debug` by passing `--log-level` argument:
 
 ```bash
-❯ netassert run --input-file ./sample-tests/test-cases/test-cases.yaml --log-level=debug
+❯ netassert run --input-file ./e2e/manifests/test-cases.yaml --log-level=debug
 ```
 
 ## RBAC Configuration
 
 This tool can be run according to the Principle of Least Privilege (PoLP) by properly configuring the RBAC.
 
-The list of required permissions can be found in the `netassert` ClusterRole `kubernetes/rbac/cluster-role.yaml`, which could be redefined as a Role for namespacing reasons if needed. This role can then be bound to a "principal" either through a RoleBinding or a ClusterRoleBinding, depending on whether the scope of the role is supposed to be namespaced or not. The ClusterRoleBinding `kubernetes/rbac/cluster-rolebinding.yaml` is an example where the user `netassert-user` is assigned the role `netassert` using a cluster-wide binding called `netassert`
+The list of required permissions can be found in the `netassert` ClusterRole `rbac/cluster-role.yaml`, which could be redefined as a Role for namespacing reasons if needed. This role can then be bound to a "principal" either through a RoleBinding or a ClusterRoleBinding, depending on whether the scope of the role is supposed to be namespaced or not. The ClusterRoleBinding `rbac/cluster-rolebinding.yaml` is an example where the user `netassert-user` is assigned the role `netassert` using a cluster-wide binding called `netassert`
 
 ## Limitations
 
@@ -349,6 +387,6 @@ The list of required permissions can be found in the `netassert` ClusterRole `ku
 
 - Please check this [README.md](./e2e/README.md)
 
-[testing_workflow_badge]: https://github.com/controlplaneio/netassert/workflows/Lint%20and%20Build/badge.svg
+[testing_workflow_badge]: https://github.com/controlplaneio/netassert/actions/workflows/build.yaml/badge.svg
 
-[release_workflow_badge]: https://github.com/controlplaneio/netassert/workflows/goreleaser/badge.svg
+[release_workflow_badge]: https://github.com/controlplaneio/netassert/actions/workflows/release.yaml/badge.svg

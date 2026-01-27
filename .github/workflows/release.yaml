@@ -8,98 +8,116 @@ on:
 
 permissions:
   contents: write
+  packages: write
+  id-token: write
+  attestations: write
 
 env:
   GH_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   RELEASE_VERSION: ${{ github.ref_name }}
+  SCANNER_IMG_VERSION: v1.0.11
+  SNIFFER_IMG_VERSION: v1.1.9
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3
         with:
-          go-version: '1.24.3'
-      - uses: anchore/sbom-action/download-syft@v0.20.6
+          go-version: '1.25.4'
+
+      - uses: anchore/sbom-action/download-syft@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v4
+        uses: goreleaser/goreleaser-action@5fdedb94abba051217030cc86d4523cf3f02243d # v4
         with:
           distribution: goreleaser
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  packagerelease:
+  docker:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      # - name: Extract metadata (tags, labels) for Docker
+      #   id: meta
+      #   uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+      #   with:
+      #     images: ${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+
       - name: Log in to the GitHub Container registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
           registry: ${{ env.GH_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: ${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ env.RELEASE_VERSION }}
+
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build and push
-        uses: docker/build-push-action@v4
+        id: buildpush
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          context: .
           platforms: linux/amd64,linux/arm64
+          sbom: true
+          provenance: mode=max
           push: true
           tags: |
-            controlplane/netassert:${{ github.ref_name }}
-            controlplane/netassert:latest
+            docker.io/controlplane/netassert:${{ env.RELEASE_VERSION }}
+            docker.io/controlplane/netassert:latest
+            ${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+            ${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
             VERSION=${{ env.RELEASE_VERSION }}
+            SCANNER_IMG_VERSION=${{ env.SCANNER_IMG_VERSION }}
+            SNIFFER_IMG_VERSION=${{ env.SNIFFER_IMG_VERSION }}
 
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-name: ${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME}}
-          subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: true
+      - name: Sign artifact
+        run: |
+          cosign sign --yes \
+            "${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.buildpush.outputs.digest }}"
+          cosign sign --yes \
+            "docker.io/controlplane/netassert@${{ steps.buildpush.outputs.digest }}"
+
+  helm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+
       - name: Setup yq
-        uses: mikefarah/yq@v4
+        uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4
+
       - name: Log in to GitHub Container Registry
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Prepare and package Helm chart
         run: |
           CLEAN_VERSION=$(echo "$RELEASE_VERSION" | sed 's/^v//')
@@ -108,6 +126,7 @@ jobs:
           yq -i ".version = \"${CLEAN_VERSION}\"" ./helm/Chart.yaml
           yq -i ".appVersion = \"${CLEAN_VERSION}\"" ./helm/Chart.yaml
           helm package ./helm -d .
+
       - name: Push Helm chart to GHCR
         run: |
           CLEAN_VERSION=$(echo "$RELEASE_VERSION" | sed 's/^v//')

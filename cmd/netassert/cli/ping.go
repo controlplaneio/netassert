@@ -6,8 +6,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
 
+	"github.com/controlplaneio/netassert/v2/internal/kubeops"
 	"github.com/controlplaneio/netassert/v2/internal/logger"
 )
 
@@ -31,21 +33,20 @@ var pingCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := context.WithTimeout(context.Background(), pingCmdCfg.PingTimeout)
 		defer cancel()
-		ping(ctx)
+		lg := logger.NewHCLogger("info", fmt.Sprintf("%s-%s", appName, version), os.Stdout)
+		k8sSvc, err := createService(pingCmdCfg.KubeConfig, lg)
+
+		if err != nil {
+			lg.Error("Ping failed, unable to build K8s Client", "error", err)
+			os.Exit(1)
+		}
+		ping(ctx, lg, k8sSvc)
 	},
 	Version: rootCmd.Version,
 }
 
 // checkEphemeralContainerSupport checks to see if ephemeral containers are supported by the K8s server
-func ping(ctx context.Context) {
-	lg := logger.NewHCLogger("info", fmt.Sprintf("%s-%s", appName, version), os.Stdout)
-
-	k8sSvc, err := createService(pingCmdCfg.KubeConfig, lg)
-
-	if err != nil {
-		lg.Error("Ping failed, unable to build K8s Client", "error", err)
-		os.Exit(1)
-	}
+func ping(ctx context.Context, lg hclog.Logger, k8sSvc *kubeops.Service) {
 
 	if err := k8sSvc.PingHealthEndpoint(ctx, apiServerHealthEndpoint); err != nil {
 		lg.Error("Ping failed", "error", err)
