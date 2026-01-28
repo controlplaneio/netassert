@@ -55,3 +55,17 @@ Run the tests using the following command:
 ```
 
 Tests can be configured by updating values in [end-to-end test helpers](./helpers/)
+
+## Azure AKS Integration
+
+Currently, end-to-end testing of NetAssert with Azure Kubernetes Service (AKS) is not scheduled. However, we do not foresee any architectural reasons that would prevent successful integration.
+
+### Network Policy Support
+There are [three primary approaches](https://learn.microsoft.com/en-us/azure/aks/use-network-policies) for supporting network policies in AKS.
+
+If the requirement is limited to **Linux nodes only** (excluding Windows), the recommended solution is [Azure CNI powered by Cilium](https://learn.microsoft.com/en-us/azure/aks/azure-cni-powered-by-cilium).
+
+### Deployment via Terraform
+For deploying a testing cluster, the Container Network Interface (CNI) configuration appears straightforward. It can likely be handled via a single parameter in the `azurerm` provider, specifically the [`network_policy` argument](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/kubernetes_cluster#network_policy-1). 
+
+*Note: This Terraform configuration has yet to be validated.*
