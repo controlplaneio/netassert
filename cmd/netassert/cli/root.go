@@ -19,11 +19,11 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "netassert",
 	Short: "NetAssert is a command line utility to test network connectivity between kubernetes objects",
-	Long: "NetAssert is a command line utility to test network connectivity between kubernetes objects. " +
-		"It currently supports Deployment, Pod, Statefulset and Daemonset. You can check the traffic flow between these objects or from these " +
-		"objects to a remote host or an IP address.",
+	Long: "NetAssert is a command line utility to test network connectivity between kubernetes objects.\n" +
+		"It currently supports Deployment, Pod, Statefulset and Daemonset.\nYou can check the traffic flow between these objects or from these " +
+		"objects to a remote host or an IP address.\n\nBuilt by ControlPlane https://control-plane.io",
 
-	Version: fmt.Sprintf("\nNetAssert by control-plane.io\n"+
+	Version: fmt.Sprintf("\nBuilt by ControlPlane https://control-plane.io\n"+
 		"Version: %s\nCommit Hash: %s\nBuild Date: %s\n",
 		version, gitHash, buildDate),
 }
