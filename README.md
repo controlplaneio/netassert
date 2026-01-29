@@ -235,23 +235,38 @@ All the tests are read from an YAML file or a directory (step **1**) and the res
 
 ## Quick testing
 
+### Spinning up the environment
+
 - Make sure you have installed [`kind`](https://kind.sigs.k8s.io/) and its prerequisites
 - Make sure you have also installed [`just`](https://github.com/casey/just/releases)
-- Download the `NetAssert` binary from the [release](https://github.com/controlplaneio/netassert/releases) page
+- Download the `NetAssert` binary from the [release](https://github.com/controlplaneio/netassert/releases) page:
 
-- If you want to quickly test `NetAssert`, you can make use of the sample test(s) and manifests provided
+```bash
+❯ VERSION="v2.1.3" # change it to the version you want to install
+❯ OS_DISTRO=linux_amd64 # change it to your OS_DISTRO (for reference check the NetAssert release page)
+❯ curl -L -o netassert.tar.gz https://github.com/controlplaneio/netassert/releases/download/${VERSION}/netassert_${VERSION}_${OS_ARCH}.tar.gz
 
-- You will also need a working kubernetes cluster with ephemeral/debug container support and a CNI that supports Network Policies, you can spin one quickly using the `justfile` included in the repo
+❯ tar -xzf netassert.tar.gz -C bin/netassert
+```
+
+- Alternatively, you can build `NetAssert` from source:
+```bash
+❯ just build
+```
+
+- You will also need a working kubernetes cluster with ephemeral/debug container support and a CNI that supports Network Policies, you can spin one quickly using the `justfile` included in the repo:
 
 ```bash
 ❯ just kind-down ; just kind-up
 ❯ just calico-apply
 ```
 
-- wait for all the nodes to become ready
+- wait for all the nodes to become ready:
 ```bash
-❯ kubectl get nodes
+❯ kubectl get nodes -w
 ```
+
+### Running the sample tests
 
 - In order to use the sample tests, you need to create network policies and kubernetes resources:
 
@@ -274,17 +289,43 @@ All the tests are read from an YAML file or a directory (step **1**) and the res
 
 ```bash
 ❯ just netpol-apply
+  kubectl apply -f ./e2e/manifests/networkpolicies.yaml
+  networkpolicy.networking.k8s.io/web created
 ```
 
-- Wait for the workload to become ready
+- Wait for the workload to become ready (note that the workload pods are the ones created after running `just k8s-apply` in a previous step):
 ```bash
 ❯ kubectl get pods -A
+  busybox              busybox-6c85d76fdc-r8gtp                            1/1     Running   0          76s
+  echoserver           echoserver-64bd7c5dc6-ldwh9                         1/1     Running   0          76s
+  fluentd              fluentd-5pp9c                                       1/1     Running   0          76s
+  fluentd              fluentd-8vvp9                                       1/1     Running   0          76s
+  fluentd              fluentd-9jblb                                       1/1     Running   0          76s
+  fluentd              fluentd-jnlql                                       1/1     Running   0          76s
+  kube-system          calico-kube-controllers-565c89d6df-8mwk9            1/1     Running   0          117s
+  kube-system          calico-node-2sqhw                                   1/1     Running   0          117s
+  kube-system          calico-node-4sxpn                                   1/1     Running   0          117s
+  kube-system          calico-node-5gtg7                                   1/1     Running   0          117s
+  kube-system          calico-node-kxjq8                                   1/1     Running   0          117s
+  kube-system          coredns-7d764666f9-74xgb                            1/1     Running   0          2m29s
+  kube-system          coredns-7d764666f9-jvnr4                            1/1     Running   0          2m29s
+  kube-system          etcd-packet-test-control-plane                      1/1     Running   0          2m35s
+  kube-system          kube-apiserver-packet-test-control-plane            1/1     Running   0          2m35s
+  kube-system          kube-controller-manager-packet-test-control-plane   1/1     Running   0          2m35s
+  kube-system          kube-proxy-4xjp2                                    1/1     Running   0          2m27s
+  kube-system          kube-proxy-b28pw                                    1/1     Running   0          2m29s
+  kube-system          kube-proxy-p9smj                                    1/1     Running   0          2m27s
+  kube-system          kube-proxy-xb2wq                                    1/1     Running   0          2m27s
+  kube-system          kube-scheduler-packet-test-control-plane            1/1     Running   0          2m35s
+  local-path-storage   local-path-provisioner-67b8995b4b-jf8lc             1/1     Running   0          2m29s
+  pod1                 pod1                                                1/1     Running   0          75s
+  pod2                 pod2                                                1/1     Running   0          76s
+  web                  web-0                                               1/1     Running   0          75s
+  web                  web-1                                               1/1     Running   0          31s
 ```
-- Run the netassert binary pointing it to the test cases, one of the test cases will fail and this is by design:
+- Run the netassert binary pointing it to the test cases:
 
 ```bash
-❯ just build ## from the root of the project
-
 ❯ bin/netassert run --input-file ./e2e/manifests/test-cases.yaml
 
 ❯ cat results.tap 
@@ -301,10 +342,13 @@ ok 8 - test-from-pod1-to-pod2
 ok 9 - busybox-deploy-to-fake-host
 ```
 
-- To see the results when a check fails
+- To see the results when a check fails, run:
 
 ```bash
 ❯ just netpol-rm-apply
+  kubectl delete -f ./e2e/manifests/networkpolicies.yaml
+  networkpolicy.networking.k8s.io "web" deleted
+
 ❯ bin/netassert run --input-file ./e2e/manifests/test-cases.yaml
 
 ❯ cat results.tap
