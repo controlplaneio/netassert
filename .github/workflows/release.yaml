@@ -29,7 +29,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3
         with:
-          go-version: '1.25.4'
+          go-version: '1.26.5'
 
       - uses: anchore/sbom-action/download-syft@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
 
