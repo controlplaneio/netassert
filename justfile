@@ -49,11 +49,10 @@ calico-apply:
 calico-rm-apply:
 	kubectl delete -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.3/manifests/calico.yaml
 
-# build docker image and tag it 0.0.01
 docker-build:
-	docker build -f Dockerfile --no-cache --tag packet-capture:{{version}} .
-
-# import image into the local kind cluster called packet-test
-kind-import-image:
-    kind load docker-image packet-capture:{{version}} --name packet-test && kind load docker-image netassert-client:{{version}} --name packet-test
-
+	docker build -f Dockerfile \
+		--no-cache \
+		--build-arg VERSION={{version}} \
+		--build-arg SCANNER_IMG_VERSION=latest \
+		--build-arg SNIFFER_IMG_VERSION=latest \
+		--tag netassert-local:{{version}} .
