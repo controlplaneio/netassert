@@ -6,11 +6,7 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-testing[0-9]+"
 
-permissions:
-  contents: write
-  packages: write
-  id-token: write
-  attestations: write
+permissions: {}
 
 env:
   GH_REGISTRY: ghcr.io
@@ -22,6 +18,8 @@ env:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for GoReleaser to create releases and upload assets.
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -45,6 +43,9 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for keyless signing with cosign.
+      packages: write # Required to push images to ghcr.io.
 
     steps:
       - name: Checkout repository
@@ -107,6 +108,8 @@ jobs:
 
   helm:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write # Required to push chart to ghcr.io.
 
     steps:
       - name: Checkout repository

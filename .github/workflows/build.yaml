@@ -8,9 +8,13 @@ on:
   pull_request:
     branches: ['main', 'master']
 
+permissions: {}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write # Required for reviewdog to create check runs.
     steps:
       - name: Checkout repository
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
