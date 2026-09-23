@@ -100,11 +100,13 @@ jobs:
             SNIFFER_IMG_VERSION=${{ env.SNIFFER_IMG_VERSION }}
 
       - name: Sign artifact
+        env:
+          DIGEST: ${{ steps.buildpush.outputs.digest }}
         run: |
           cosign sign --yes \
-            "${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.buildpush.outputs.digest }}"
+            "${GH_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
           cosign sign --yes \
-            "docker.io/controlplane/netassert@${{ steps.buildpush.outputs.digest }}"
+            "docker.io/controlplane/netassert@${DIGEST}"
 
   helm:
     runs-on: ubuntu-latest
@@ -124,8 +126,10 @@ jobs:
         uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4
 
       - name: Log in to GitHub Container Registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${GITHUB_TOKEN}" | helm registry login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
       - name: Prepare and package Helm chart
         run: |
