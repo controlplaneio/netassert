@@ -39,6 +39,7 @@ jobs:
         uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3
         with:
           go-version-file: 'go.mod'
+          cache: false
 
       - name: Install dependencies
         run: go get ./...
