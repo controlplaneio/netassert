@@ -55,9 +55,6 @@ jobs:
       - name: Build
         run: go build -v ./...
 
-      - name: Build Container
-        run: go build -v ./...
-
       - name: Build an image from Dockerfile
         run: |
           docker build -t controlplane/netassert:${{ github.sha }} .
