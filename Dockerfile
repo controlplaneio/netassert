@@ -13,7 +13,7 @@ RUN go mod download && \
     ls -ltr /netassertv2
 
 # gcr.io/distroless/base:nonroot
-FROM gcr.io/distroless/base@sha256:0896741ba5bafd3ac87ea025a5f578952f2d238ddc3614cb368acc983a687aa2
+FROM gcr.io/distroless/static:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
 COPY --from=builder /netassertv2 /usr/bin/netassertv2
 
 ENTRYPOINT [ "/usr/bin/netassertv2" ]
