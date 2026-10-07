@@ -6,11 +6,7 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-testing[0-9]+"
 
-permissions:
-  contents: write
-  packages: write
-  id-token: write
-  attestations: write
+permissions: {}
 
 env:
   GH_REGISTRY: ghcr.io
@@ -22,14 +18,19 @@ env:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for GoReleaser to create releases and upload assets.
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3
         with:
           go-version-file: 'go.mod'
+          cache: false
 
       - uses: anchore/sbom-action/download-syft@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
 
@@ -43,10 +44,15 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for keyless signing with cosign.
+      packages: write # Required to push images to ghcr.io.
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
 
       # - name: Extract metadata (tags, labels) for Docker
       #   id: meta
@@ -95,18 +101,24 @@ jobs:
             SNIFFER_IMG_VERSION=${{ env.SNIFFER_IMG_VERSION }}
 
       - name: Sign artifact
+        env:
+          DIGEST: ${{ steps.buildpush.outputs.digest }}
         run: |
           cosign sign --yes \
-            "${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.buildpush.outputs.digest }}"
+            "${GH_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
           cosign sign --yes \
-            "docker.io/controlplane/netassert@${{ steps.buildpush.outputs.digest }}"
+            "docker.io/controlplane/netassert@${DIGEST}"
 
   helm:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write # Required to push chart to ghcr.io.
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
 
       - name: Set up Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
@@ -115,8 +127,10 @@ jobs:
         uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4
 
       - name: Log in to GitHub Container Registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${GITHUB_TOKEN}" | helm registry login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
       - name: Prepare and package Helm chart
         run: |

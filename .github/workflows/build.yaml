@@ -8,12 +8,18 @@ on:
   pull_request:
     branches: ['main', 'master']
 
+permissions: {}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write # Required for reviewdog to create check runs.
     steps:
       - name: Checkout repository
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+        with:
+          persist-credentials: false
 
       - name: Run golangci-lint
         uses: reviewdog/action-golangci-lint@f9bba13753278f6a73b27a56a3ffb1bfda90ed71 # v2
@@ -26,11 +32,14 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@be3c94b385c4f180051c996d336f57a34c397495 # v3
         with:
           go-version-file: 'go.mod'
+          cache: false
 
       - name: Install dependencies
         run: go get ./...
@@ -54,7 +63,7 @@ jobs:
           docker build -t controlplane/netassert:${{ github.sha }} .
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: 'controlplane/netassert:${{ github.sha }}'
           format: 'table'
